@@ -12,7 +12,9 @@ BIN_EXT := .exe
 
 LIB_PREFIX := 
 
-LIB_EXT := .lib
+STAT_LIB_EXT := .lib
+
+DYN_LIB_EXT := .dll
 
 G++ := g++.exe
 

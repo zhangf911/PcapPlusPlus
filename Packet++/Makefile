@@ -30,26 +30,35 @@ endif
 Obj/%.o: src/%.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	$(G++) $(DEPS) $(INCLUDES) -O2 -g -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:Obj/%.o=Obj/%.d)" -MT"$(@:Obj/%.o=Obj/%.d)" -o "$@" "$<"
+	$(G++) $(DEPS) $(INCLUDES) -O2 -fPIC -g -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:Obj/%.o=Obj/%.d)" -MT"$(@:Obj/%.o=Obj/%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
 # All Target
-all: Packet++
+all: Packet++.static Packet++.dynamic
 
 create-directories:
 	$(MKDIR) -p Obj
 	$(MKDIR) -p Lib
 
-# Tool invocations
-Packet++: create-directories $(OBJS_FILENAMES)
-	@echo 'Building target: $@'
+# Static library compilation
+Packet++.static: create-directories $(OBJS_FILENAMES)
+	@echo 'Building static target: $@'
 	@echo 'Invoking: GCC Archiver'
-	$(AR) -r  "Lib/$(LIB_PREFIX)Packet++$(LIB_EXT)" $(OBJS_FILENAMES)
-	@echo 'Finished successfully building target: $@'
+	$(AR) -r  "Lib/$(LIB_PREFIX)Packet++$(STAT_LIB_EXT)" $(OBJS_FILENAMES) $(COMMONPP_HOME)/Lib/$(LIB_PREFIX)Common++$(STAT_LIB_EXT)
+	@echo 'Finished successfully building static target: $@'
 	@echo ' '
 
-# Other Targets
+# Dynamic library compilation
+Packet++.dynamic: create-directories $(OBJS_FILENAMES)
+	@echo 'Building dynamic target: $@'
+	@echo 'Invoking: GCC'
+	$(G++) -shared -Wl,-soname,$(LIB_PREFIX)Packet++$(DYN_LIB_EXT) -o "Lib/$(LIB_PREFIX)Packet++$(DYN_LIB_EXT)" $(OBJS_FILENAMES) $(COMMONPP_HOME)/Lib/$(LIB_PREFIX)Common++$(STAT_LIB_EXT)
+	@echo 'Finished successfully building dynamic target: $@'
+	@echo ' '
+
+
+# Clean Target
 clean:
 	$(RM) -rf ./Obj/*
 	$(RM) -rf ./Lib/*

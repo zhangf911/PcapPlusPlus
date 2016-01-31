@@ -7,6 +7,7 @@
 #include <ArpLayer.h>
 #include <PPPoELayer.h>
 #include <MplsLayer.h>
+#include <PacketUtils.h>
 #include <string.h>
 #include <sstream>
 #ifdef WIN32
@@ -75,3 +76,15 @@ std::string VlanLayer::toString()
 
 	return "VLAN Layer, Priority: " + priStream.str() + ", Vlan ID: " + idStream.str() + ", CFI: " + cfiStream.str();
 }
+
+// these static method and const variable are only for the purpose of including and using PacketUtils somewhere in Packet++, or else
+// when compiling Pcap++ to a dynamic library, PacketUtils isn't compiled and included as it not used anywhere
+
+static size_t packetUtilsDummy()
+{
+	Packet p;
+	return hash5Tuple(&p);
+}
+
+static const size_t packetUtilsDummyConst = packetUtilsDummy();
+

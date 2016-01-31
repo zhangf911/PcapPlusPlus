@@ -4,7 +4,9 @@ BIN_EXT :=
 
 LIB_PREFIX := lib
 
-LIB_EXT := .a
+STAT_LIB_EXT := .a
+
+DYN_LIB_EXT := .so
 
 G++ := g++
 

@@ -25,9 +25,15 @@ libs:
 	cd $(PCAPPP_HOME)               && $(MAKE) all
 	$(MKDIR) -p Dist
 	$(MKDIR) -p Dist/header
-	$(CP) $(COMMONPP_HOME)/Lib/* ./Dist
-	$(CP) $(PACKETPP_HOME)/Lib/* ./Dist
-	$(CP) $(PCAPPP_HOME)/Lib/* ./Dist
+	$(MKDIR) -p Dist/lib
+	$(MKDIR) -p Dist/lib/static
+	$(MKDIR) -p Dist/lib/dynamic
+	$(CP) $(COMMONPP_HOME)/Lib/*$(STAT_LIB_EXT) ./Dist/lib/static
+	$(CP) $(COMMONPP_HOME)/Lib/*$(DYN_LIB_EXT) ./Dist/lib/dynamic
+	$(CP) $(PACKETPP_HOME)/Lib/*$(STAT_LIB_EXT) ./Dist/lib/static
+	$(CP) $(PACKETPP_HOME)/Lib/*$(DYN_LIB_EXT) ./Dist/lib/dynamic
+	$(CP) $(PCAPPP_HOME)/Lib/*$(STAT_LIB_EXT) ./Dist/lib/static
+	$(CP) $(PCAPPP_HOME)/Lib/*$(DYN_LIB_EXT) ./Dist/lib/dynamic
 	$(CP) $(COMMONPP_HOME)/header/* ./Dist/header
 	$(CP) $(PACKETPP_HOME)/header/* ./Dist/header
 	$(CP) $(PCAPPP_HOME)/header/* ./Dist/header

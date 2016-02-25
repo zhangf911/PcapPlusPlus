@@ -4,6 +4,8 @@
 SOURCES := $(wildcard *.cpp)
 OBJS_FILENAMES := $(patsubst %.cpp,Obj/%.o,$(SOURCES))
 
+COMMON_DEBUG_LIB_DIR := -L../Common++/Lib/Debug
+
 Obj/%.o: %.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
@@ -15,7 +17,7 @@ Obj/%.o: %.cpp
 UNAME := $(shell uname)
 
 # All Target
-all: Packet++Test
+all: dependents Packet++Test
 
 create-directories:
 	$(MKDIR) -p Obj
@@ -25,11 +27,11 @@ dependents:
 	cd $(PCAPPLUSPLUS_HOME) && $(MAKE) libs
 
 # Tool invocations
-Packet++Test: create-directories dependents $(OBJS_FILENAMES)
+Packet++Test: create-directories $(OBJS_FILENAMES)
 	@echo uname is: $(UNAME)
 	@echo 'Building target: $@'
 	@echo 'Invoking C++ Linker'
-	$(G++) $(PCAPPP_LIBS_DIR) $(PCAPPP_BUILD_FLAGS) -o "./Bin/Packet++Test$(BIN_EXT)" $(OBJS_FILENAMES) $(PCAPPP_LIBS)
+	$(G++) $(COMMON_DEBUG_LIB_DIR) $(PCAPPP_LIBS_DIR) $(PCAPPP_BUILD_FLAGS) -o "./Bin/Packet++Test$(BIN_EXT)" $(OBJS_FILENAMES) $(PCAPPP_LIBS) 
 	$(PCAPPP_POST_BUILD)
 	@echo 'Finished successfully building target: $@'
 	@echo ' '

@@ -1,7 +1,8 @@
 -include ../mk/platform.mk
 
 SOURCES := $(wildcard src/*.cpp)
-OBJS_FILENAMES := $(patsubst src/%.cpp,Obj/%.o,$(SOURCES))
+OBJS_FILENAMES_DEBUG := $(patsubst src/%.cpp,Obj/%.o,$(SOURCES))
+OBJS_FILENAMES := $(filter-out Obj/debug_new.o,$(OBJS_FILENAMES_DEBUG))
 
 ifdef WIN32
 DEPS := -DWPCAP -DHAVE_REMOTE
@@ -35,19 +36,29 @@ Obj/%.o: src/%.cpp
 	@echo ' '
 
 # All Target
-all: Common++.static Common++.dynamic
+all: Common++.dynamic Common++.debug
 
 create-directories:
 	$(MKDIR) -p Obj
 	$(MKDIR) -p Lib
+	$(MKDIR) -p Lib/Debug
+	$(MKDIR) -p Lib/Release
 
 # Static library compilation
 Common++.static: create-directories $(OBJS_FILENAMES)
 	@echo 'Building staic target: $@'
 	@echo 'Invoking: GCC Archiver'
-	$(AR) -r  "Lib/$(LIB_PREFIX)Common++$(STAT_LIB_EXT)" $(OBJS_FILENAMES)
-	@echo 'Finished successfully building static target: $@'
+	$(AR) -r "Lib/Release/$(LIB_PREFIX)Common++$(LIB_EXT)" $(OBJS_FILENAMES)
+	@echo 'Finished successfully building target: $@'
 	@echo ' '
+	
+Common++.debug: create-directories $(OBJS_FILENAMES_DEBUG)
+	@echo 'Building target: $@'
+	@echo 'Invoking: GCC Archiver'
+	$(AR) -r "Lib/Debug/$(LIB_PREFIX)Common++$(LIB_EXT)" $(OBJS_FILENAMES_DEBUG)
+	@echo 'Finished successfully building target: $@'
+	@echo ' '
+
 
 # Dynamic library compilation
 Common++.dynamic: create-directories $(OBJS_FILENAMES)

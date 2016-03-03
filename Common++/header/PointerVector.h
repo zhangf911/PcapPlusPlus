@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <vector>
+#include <Macros.h>
 
 /// @file
 
@@ -14,7 +15,7 @@
  * This class wraps std::vector and adds the capability of freeing objects once they're removed from it
  */
 template<typename T>
-class PointerVector
+class PCAPPP_EXPORT PointerVector
 {
 public:
 	/**

@@ -3,6 +3,7 @@
 
 #include <Layer.h>
 #include <IPv4Layer.h>
+#include <Macros.h>
 #include <sys/time.h>
 #include <vector>
 
@@ -254,7 +255,7 @@ typedef struct : icmphdr
  * Router address structure, relevant for ICMP router advertisement message type (icmp_router_advertisement)
  */
 #pragma pack(push, 1)
-struct icmp_router_address_structure
+struct PCAPPP_EXPORT icmp_router_address_structure
 {
 	/** the IPv4 address of the advertised router */
 	uint32_t routerAddress;
@@ -300,7 +301,7 @@ typedef struct : icmphdr
  * @struct icmp_router_advertisement
  * ICMP router advertisement message structure
  */
-struct icmp_router_advertisement
+struct PCAPPP_EXPORT icmp_router_advertisement
 {
 	/** a pointer to the header data on the packet */
 	icmp_router_advertisement_hdr* header;
@@ -365,7 +366,7 @@ typedef icmp_info_request icmp_info_reply;
  * @class IcmpLayer
  * Represents an ICMP protocol layer (for IPv4 only)
  */
-class IcmpLayer : public Layer
+class PCAPPP_EXPORT IcmpLayer : public Layer
 {
 private:
 	icmp_echo_request m_EchoData;

@@ -2,6 +2,7 @@
 #define PACKETPP_IPV6_LAYER
 
 #include "Layer.h"
+#include "Macros.h"
 #include "IpAddress.h"
 
 /// @file
@@ -48,7 +49,7 @@ struct ip6_hdr {
  * @class IPv6Layer
  * Represents an IPv6 protocol layer
  */
-class IPv6Layer : public Layer
+class PCAPPP_EXPORT IPv6Layer : public Layer
 {
 public:
 	/**

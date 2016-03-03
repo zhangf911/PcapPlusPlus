@@ -8,6 +8,7 @@
 #elif LINUX
 #include <in.h>
 #endif
+#include <Macros.h>
 
 /// @file
 
@@ -217,7 +218,7 @@ class DnsLayer;
  * An abstract class for representing all types of DNS records. This class gives access to all available record data such as DNS type, class,
  * name, type of record, etc. The DnsLayer holds an instance of (inherited type of) this class for each DNS record in the DNS packet
  */
-class IDnsResource
+class PCAPPP_EXPORT IDnsResource
 {
 protected:
 	friend class DnsLayer;
@@ -315,7 +316,7 @@ public:
  * @class DnsQuery
  * Representing a DNS query record
  */
-class DnsQuery : public IDnsResource
+class PCAPPP_EXPORT DnsQuery : public IDnsResource
 {
 	friend class DnsLayer;
 
@@ -337,7 +338,7 @@ public:
  * @class DnsResource
  * Representing DNS record other than DNS query
  */
-class DnsResource : public IDnsResource
+class PCAPPP_EXPORT DnsResource : public IDnsResource
 {
 	friend class DnsLayer;
 
@@ -419,7 +420,7 @@ public:
  * Represents the DNS protocol layer.<BR>
  * CURRENTLY ONLY DNS PARSING IS AVAILABLE. CREATING AND EDITING DNS ATTRIBUTES WILL BE ADDED LATER
  */
-class DnsLayer : public Layer
+class PCAPPP_EXPORT DnsLayer : public Layer
 {
 	friend class IDnsResource;
 	friend class DnsQuery;

@@ -2,6 +2,7 @@
 #define PACKETPP_HTTP_LAYER
 
 #include "Layer.h"
+#include "Macros.h"
 #include <string>
 #include <exception>
 #include <map>
@@ -75,7 +76,7 @@ class HttpMessage;
  * CRLF/LF as part of the last field in the header, and the second CRLF is an HttpField instance of its own which name and values are an empty string ("")
  * or ::END_OF_HTTP_HEADER
  */
-class HttpField
+class PCAPPP_EXPORT HttpField
 {
 	friend class HttpMessage;
 public:
@@ -154,7 +155,7 @@ private:
  * A base class that wraps HTTP header layers (both request and response). It is the base class for HttpRequestLayer and HttpResponseLayer.
  * This class is not abstract but it's not meant to be instantiated, hence the protected c'tor
  */
-class HttpMessage : public Layer
+class PCAPPP_EXPORT HttpMessage : public Layer
 {
 	friend class HttpField;
 public:
@@ -296,7 +297,7 @@ class HttpRequestFirstLine;
  * packets), this why PcapPlusPlus can indicate that HTTP request header is complete or not(doesn't end with "\r\n\r\n" or "\n\n") using
  * HttpMessage#isHeaderComplete()
  */
-class HttpRequestLayer : public HttpMessage
+class PCAPPP_EXPORT HttpRequestLayer : public HttpMessage
 {
 	friend class HttpRequestFirstLine;
 public:
@@ -402,7 +403,7 @@ class HttpResponseFirstLine;
  * packets), this why PcapPlusPlus can indicate that HTTP response header is complete or not (doesn't end with "\r\n\r\n" or "\n\n") using
  * HttpMessage#isHeaderComplete()
  */
-class HttpResponseLayer : public HttpMessage
+class PCAPPP_EXPORT HttpResponseLayer : public HttpMessage
 {
 	friend class HttpResponseFirstLine;
 public:
@@ -663,7 +664,7 @@ private:
  * of this class need in most cases to shorten or extend the data in HttpRequestLayer. These methods will return a false value if this
  * action failed
  */
-class HttpRequestFirstLine
+class PCAPPP_EXPORT HttpRequestFirstLine
 {
 	friend class HttpRequestLayer;
 public:
@@ -730,7 +731,7 @@ public:
 	 * only in HttpRequestLayer). This kind of exception will be thrown if trying to construct with HTTP method of
 	 * HttpRequestLayer#HttpMethodUnknown or with undefined HTTP version ::HttpVersionUnknown
 	 */
-	class HttpRequestFirstLineException : public std::exception
+	class PCAPPP_EXPORT HttpRequestFirstLineException : public std::exception
 	{
 	public:
 		~HttpRequestFirstLineException() throw() {}
@@ -775,7 +776,7 @@ private:
  * of this class need in most cases to shorten or extend the data in HttpResponseLayer. These methods will return a false value if this
  * action failed
  */
-class HttpResponseFirstLine
+class PCAPPP_EXPORT HttpResponseFirstLine
 {
 	friend class HttpResponseLayer;
 public:
@@ -841,7 +842,7 @@ public:
 	 * only in HttpResponseLayer). This kind of exception will be thrown if trying to construct with HTTP status code of
 	 * HttpResponseLayer#HttpStatusCodeUnknown or with undefined HTTP version ::HttpVersionUnknown
 	 */
-	class HttpResponseFirstLineException : public std::exception
+	class PCAPPP_EXPORT HttpResponseFirstLineException : public std::exception
 	{
 	public:
 		~HttpResponseFirstLineException() throw() {}

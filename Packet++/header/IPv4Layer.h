@@ -2,6 +2,7 @@
 #define PACKETPP_IPV4_LAYER
 
 #include "Layer.h"
+#include "Macros.h"
 #include "IpAddress.h"
 
 /// @file
@@ -98,7 +99,7 @@ enum IPProtocolTypes
  * @class IPv4Layer
  * Represents an IPv4 protocol layer
  */
-class IPv4Layer : public Layer
+class PCAPPP_EXPORT IPv4Layer : public Layer
 {
 public:
 	/**

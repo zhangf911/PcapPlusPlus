@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <Macros.h>
 
 #ifndef LOG_MODULE
 #define LOG_MODULE UndefinedLogModule
@@ -58,7 +59,7 @@ enum LogModule
  *
  * PcapPlusPlus logger is a singleton which can be reached from anywhere in the code *
  */
-class LoggerPP
+class PCAPPP_EXPORT LoggerPP
 {
 public:
 	/**
@@ -146,11 +147,8 @@ public:
 	 * @todo: make this singleton thread-safe/
 	 * @return a pointer to the LoggerPP singleton
 	**/
-	static inline LoggerPP& getInstance()
-	{
-		static LoggerPP instance;
-		return instance;
-	}
+	static LoggerPP& getInstance();
+
 private:
 	char* m_ErrorString;
 	int m_ErrorStringLen;

@@ -3,6 +3,7 @@
 
 #include <Layer.h>
 #include <EthLayer.h>
+#include <Macros.h>
 #ifdef WIN32
 #include <winsock2.h>
 #endif
@@ -37,7 +38,7 @@ struct vlan_header {
  * @class VlanLayer
  * Represents a VLAN tunnel layer
  */
-class VlanLayer : public Layer
+class PCAPPP_EXPORT VlanLayer : public Layer
 {
 public:
 	 /** A constructor that creates the layer from an existing packet raw data

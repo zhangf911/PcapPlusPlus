@@ -3,6 +3,7 @@
 
 #include "RawPacket.h"
 #include "Layer.h"
+#include "Macros.h"
 #include <vector>
 
 /// @file
@@ -16,7 +17,7 @@
  * For example: for a standard HTTP request packet the layer will look like this: EthLayer -> IPv4Layer -> TcpLayer -> HttpRequestLayer <BR>
  * Packet instance isn't read only. The user can add or remove layers, update current layer, etc.
  */
-class Packet {
+class PCAPPP_EXPORT Packet {
 	friend class Layer;
 private:
 	RawPacket* m_RawPacket;

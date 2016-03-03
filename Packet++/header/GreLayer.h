@@ -2,6 +2,7 @@
 #define PACKETPP_GRE_LAYER
 
 #include <Layer.h>
+#include <Macros.h>
 
 /// @file
 
@@ -98,7 +99,7 @@ struct ppp_pptp_header
  * @class GreLayer
  * Abstract base class for GRE layers (GREv0Layer and GREv1Layer). Cannot be instantiated and contains common logic for derived classes
  */
-class GreLayer : public Layer
+class PCAPPP_EXPORT GreLayer : public Layer
 {
 public:
 
@@ -176,7 +177,7 @@ protected:
  * and editing. So if a GREv0 packet includes routing information it won't be parse correctly. I didn't add it because
  * of lack of time, but if you need it please tell me and I'll add it
  */
-class GREv0Layer : public GreLayer
+class PCAPPP_EXPORT GREv0Layer : public GreLayer
 {
 public:
 
@@ -286,7 +287,7 @@ public:
  * @class GREv1Layer
  * Represents a GRE version 1 protocol
  */
-class GREv1Layer : public GreLayer
+class PCAPPP_EXPORT GREv1Layer : public GreLayer
 {
 public:
 
@@ -359,7 +360,7 @@ public:
  * @class PPP_PPTPLayer
  * Represent a PPP (point-to-point) protocol header that comes after GREv1 header, as part of PPTP - Point-to-Point Tunneling Protocol
  */
-class PPP_PPTPLayer : public Layer
+class PCAPPP_EXPORT PPP_PPTPLayer : public Layer
 {
 public:
 	/**

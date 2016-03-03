@@ -3,6 +3,7 @@
 
 #include "Layer.h"
 #include "MacAddress.h"
+#include "Macros.h"
 
 /// @file
 
@@ -59,7 +60,7 @@ struct ether_header {
  * @class EthLayer
  * Represents an Ethernet protocol layer
  */
-class EthLayer : public Layer
+class PCAPPP_EXPORT EthLayer : public Layer
 {
 public:
 	/**

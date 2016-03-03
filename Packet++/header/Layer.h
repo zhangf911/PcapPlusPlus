@@ -3,8 +3,10 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "ProtocolType.h"
 #include <string>
+#include "ProtocolType.h"
+#include "Macros.h"
+
 
 /// @file
 
@@ -42,7 +44,7 @@ class Packet;
   @endverbatim
  *
 */
-class Layer {
+class PCAPPP_EXPORT Layer {
 	friend class Packet;
 public:
 	/**

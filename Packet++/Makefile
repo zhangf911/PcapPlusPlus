@@ -1,4 +1,5 @@
 -include ../mk/platform.mk
+-include ../mk/PcapPlusPlus.mk
 
 SOURCES := $(wildcard src/*.cpp)
 OBJS_FILENAMES := $(patsubst src/%.cpp,Obj/%.o,$(SOURCES))
@@ -14,6 +15,17 @@ endif
 ifdef MAC_OS_X
 DEPS := -DMAC_OS_X
 endif
+
+ifdef COMPILE_DYNAMIC
+DEPS := -DCOMPILE_DYNAMIC
+COMPILATION_MODE := dynamic
+else
+COMPILATION_MODE := static
+endif
+
+PCAPPP_EXTERNAL_LIBS := $(patsubst -lPcap++,,$(PCAPPP_LIBS))
+PCAPPP_EXTERNAL_LIBS := $(patsubst -lPacket++,,$(PCAPPP_EXTERNAL_LIBS))
+PCAPPP_EXTERNAL_LIBS := $(patsubst -lCommon++,,$(PCAPPP_EXTERNAL_LIBS))
 
 INCLUDES := -I"./src" \
 			-I"./header" \
@@ -35,7 +47,7 @@ Obj/%.o: src/%.cpp
 	@echo ' '
 
 # All Target
-all: Packet++.static Packet++.dynamic
+all: Packet++.$(COMPILATION_MODE)
 
 create-directories:
 	$(MKDIR) -p Obj
@@ -45,15 +57,15 @@ create-directories:
 Packet++.static: create-directories $(OBJS_FILENAMES)
 	@echo 'Building static target: $@'
 	@echo 'Invoking: GCC Archiver'
-	$(AR) -r  "Lib/$(LIB_PREFIX)Packet++$(STAT_LIB_EXT)" $(OBJS_FILENAMES) $(COMMONPP_HOME)/Lib/$(LIB_PREFIX)Common++$(STAT_LIB_EXT)
+	$(AR) -r  "Lib/$(LIB_PREFIX)Packet++$(STAT_LIB_EXT)" $(OBJS_FILENAMES)
 	@echo 'Finished successfully building static target: $@'
 	@echo ' '
-
+	
 # Dynamic library compilation
 Packet++.dynamic: create-directories $(OBJS_FILENAMES)
 	@echo 'Building dynamic target: $@'
 	@echo 'Invoking: GCC'
-	$(G++) -shared -Wl,-soname,$(LIB_PREFIX)Packet++$(DYN_LIB_EXT) -o "Lib/$(LIB_PREFIX)Packet++$(DYN_LIB_EXT)" $(OBJS_FILENAMES) $(COMMONPP_HOME)/Lib/$(LIB_PREFIX)Common++$(STAT_LIB_EXT)
+	$(G++) -shared -Wl,-soname,$(LIB_PREFIX)Packet++$(DYN_LIB_EXT) $(PCAPPP_LIBS_DIR) -o "Lib/$(LIB_PREFIX)Packet++$(DYN_LIB_EXT)" $(OBJS_FILENAMES) $(COMMONPP_HOME)/Lib/$(LIB_PREFIX)Common++$(DYN_LIB_EXT) $(PCAPPP_EXTERNAL_LIBS)
 	@echo 'Finished successfully building dynamic target: $@'
 	@echo ' '
 

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string>
 #include <memory>
+#include <Macros.h>
 
 /// @file
 
@@ -11,8 +12,7 @@
  * @class MacAddress
  * Represents L2 MAC addresses. Can be constructed from string or a series of 6 byte octets
  */
-class MacAddress
-{
+class PCAPPP_EXPORT MacAddress {
 public:
 	/**
 	 * A constructor that creates an instance of the class out of a byte array. The byte array length must be equal or greater to 6
@@ -32,7 +32,7 @@ public:
 	/**
 	 *  A constructor that creates an instance of the class out of a std::string.
 	 *  If the string doesn't represent a valid MAC address, instance will be invalid, meaning isValid() will return false
-*  	 *	@param[in] addr A pointer to the string
+	 *  	 *	@param[in] addr A pointer to the string
 	 */
 	MacAddress(const std::string& addr);
 
@@ -45,7 +45,8 @@ public:
 	 *  @param[in] fifthOctet Represent the fifth octet in the address
 	 *  @param[in] sixthOctet Represent the sixth octet in the address
 	 */
-	MacAddress(uint8_t firstOctest, uint8_t secondOctet, uint8_t thirdOctet, uint8_t fourthOctet, uint8_t fifthOctet, uint8_t sixthOctet);
+	MacAddress(uint8_t firstOctest, uint8_t secondOctet, uint8_t thirdOctet,
+			uint8_t fourthOctet, uint8_t fifthOctet, uint8_t sixthOctet);
 
 	/**
 	 * A copy constructor for this class
@@ -56,26 +57,29 @@ public:
 	 * Overload of the comparison operator
 	 * @return true if 2 addresses are equal. False otherwise
 	 */
-	inline bool operator==(const MacAddress& other)
-			{
-				for (int i = 0; i < 6; i++)
-					if (m_Address[i] != other.m_Address[i])
-						return false;
-				return true;
-			}
+	inline bool operator==(const MacAddress& other) {
+		for (int i = 0; i < 6; i++)
+			if (m_Address[i] != other.m_Address[i])
+				return false;
+		return true;
+	}
 
 	/**
 	 * Overload of the not-equal operator
 	 * @return true if 2 addresses are not equal. False otherwise
 	 */
-	inline bool operator!=(const MacAddress& other) {return !operator==(other);}
+	inline bool operator!=(const MacAddress& other) {
+		return !operator==(other);
+	}
 
 	/**
 	 * Get an indication whether the MAC address is valid. An address can be invalid if it was constructed from illegal input, for example:
 	 * invalid string
 	 * @return True if the address is valid, false otherwise
 	 */
-	bool isValid() { return m_IsValid; }
+	bool isValid() {
+		return m_IsValid;
+	}
 
 	/**
 	 * Returns a std::string representation of the address
@@ -99,7 +103,7 @@ public:
 	/**
 	 * A static value representing a zero value of MAC address, meaning address of value "00:00:00:00:00:00"
 	 */
-	static MacAddress Zero;
+	static const MacAddress Zero;
 private:
 	uint8_t m_Address[6];
 	bool m_IsValid;

@@ -2,6 +2,7 @@
 #define PACKETPP_MPLS_LAYER
 
 #include <Layer.h>
+#include <Macros.h>
 
 /// @file
 
@@ -10,7 +11,7 @@
  * @class MplsLayer
  * Represents a MPLS (Multi-Protocol Label Switching) layer
  */
-class MplsLayer : public Layer
+class PCAPPP_EXPORT MplsLayer : public Layer
 {
 private:
 

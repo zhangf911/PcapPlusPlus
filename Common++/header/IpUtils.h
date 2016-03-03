@@ -14,6 +14,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #endif
+#include <Macros.h>
 
 /// @file
 
@@ -26,7 +27,7 @@
  * @param[in] size 'dst' Maximum size
  * @return pointer to presentation format address ('dst'), or NULL (see errno).
  */
-const char* inet_ntop(int af, const void* src, char* dst, size_t size);
+const char* PCAPPP_EXPORT inet_ntop(int af, const void* src, char* dst, size_t size);
 
 /**
  * Convert from presentation format (which usually means ASCII printable)
@@ -39,7 +40,7 @@ const char* inet_ntop(int af, const void* src, char* dst, size_t size);
  * 0 if the address wasn't valid ('dst' is untouched in this case);
  * -1 if some other error occurred ('dst' is untouched in this case, too)
  */
-int inet_pton(int af, const char* src, void* dst);
+int PCAPPP_EXPORT inet_pton(int af, const char* src, void* dst);
 #endif
 
 
@@ -48,33 +49,33 @@ int inet_pton(int af, const char* src, void* dst);
  * @param[in] sa - input sockaddr
  * @return Address in in_addr format
  */
-in_addr* sockaddr2in_addr(struct sockaddr *sa);
+in_addr* PCAPPP_EXPORT sockaddr2in_addr(struct sockaddr *sa);
 
 /**
  * Extract IPv6 address from sockaddr
  * @param[in] sa - input sockaddr
  * @return Address in in6_addr format
  */
-in6_addr* sockaddr2in6_addr(struct sockaddr *sa);
+in6_addr* PCAPPP_EXPORT sockaddr2in6_addr(struct sockaddr *sa);
 
 /**
  * Converts a sockaddr format address to its string representation
  * @param[in] sa Address in sockaddr format
  * @param[out]  resultString String representation of the address
  */
-void sockaddr2string(struct sockaddr *sa, char* resultString);
+void PCAPPP_EXPORT sockaddr2string(struct sockaddr *sa, char* resultString);
 
 /**
  * Convert a in_addr format address to 32bit representation
  * @param[in] inAddr Address in in_addr format
  * @return Address in 32bit format
  */
-uint32_t in_addr2int(in_addr inAddr);
+uint32_t PCAPPP_EXPORT in_addr2int(in_addr inAddr);
 
 /**
  * A struct that represent a single buffer
  */
-struct ScalarBuffer
+struct PCAPPP_EXPORT ScalarBuffer
 {
 	/**
 	 * The pointer to the buffer
@@ -93,6 +94,6 @@ struct ScalarBuffer
  * @param[in] vecSize Number of ScalarBuffers in vector
  * @return The checksum result
  */
-uint16_t compute_checksum(ScalarBuffer vec[], size_t vecSize);
+uint16_t PCAPPP_EXPORT compute_checksum(ScalarBuffer vec[], size_t vecSize);
 
 #endif

@@ -5,3 +5,9 @@ LoggerPP::LoggerPP() : m_ErrorString(NULL), m_ErrorStringLen(0), m_SuppressError
 	for (int i = 0; i<NumOfLogModules; i++)
 		m_LogModulesArray[i] = Normal;
 }
+
+LoggerPP& LoggerPP::getInstance()
+{
+	static LoggerPP instance;
+	return instance;
+}

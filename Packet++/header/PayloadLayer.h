@@ -2,6 +2,7 @@
 #define PACKETPP_PAYLOAD_LAYER
 
 #include <Layer.h>
+#include <Macros.h>
 
 /// @file
 
@@ -9,7 +10,7 @@
  * @class PayloadLayer
  * Represents a generic or unknown layer or a packet payload
  */
-class PayloadLayer : public Layer
+class PCAPPP_EXPORT PayloadLayer : public Layer
 {
 public:
 	 /** A constructor that creates the layer from an existing packet raw data

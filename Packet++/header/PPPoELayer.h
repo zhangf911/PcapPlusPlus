@@ -2,6 +2,7 @@
 #define PACKETPP_PPPOE_LAYER
 
 #include <Layer.h>
+#include <Macros.h>
 #include <vector>
 #include <string.h>
 
@@ -41,7 +42,7 @@ struct pppoe_header {
  * An abstract class that describes the PPPoE protocol. Contains common data and logic of the two types of PPPoE packets: PPPoE session
  * and PPPoE discovery
  */
-class PPPoELayer : public Layer
+class PCAPPP_EXPORT PPPoELayer : public Layer
 {
 public:
 	/**
@@ -103,7 +104,7 @@ protected:
  * @class PPPoESessionLayer
  * Describes the PPPoE session protocol
  */
-class PPPoESessionLayer : public PPPoELayer
+class PCAPPP_EXPORT PPPoESessionLayer : public PPPoELayer
 {
 public:
 
@@ -160,7 +161,7 @@ public:
  * @class PPPoEDiscoveryLayer
  * Describes the PPPoE discovery protocol
  */
-class PPPoEDiscoveryLayer : public PPPoELayer
+class PCAPPP_EXPORT PPPoEDiscoveryLayer : public PPPoELayer
 {
 public:
 	/**
@@ -210,7 +211,7 @@ public:
 	 * @struct PPPoETag
 	 * Represents a PPPoE tag and its data
 	 */
-	struct PPPoETag
+	struct PCAPPP_EXPORT PPPoETag
 	{
 	public:
 

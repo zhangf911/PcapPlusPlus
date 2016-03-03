@@ -2,6 +2,7 @@
 #define PACKETPP_UDP_LAYER
 
 #include <Layer.h>
+#include <Macros.h>
 
 /// @file
 
@@ -27,7 +28,7 @@ struct udphdr {
  * @class UdpLayer
  * Represents an UDP (User Datagram Protocol) protocol layer
  */
-class UdpLayer : public Layer
+class PCAPPP_EXPORT UdpLayer : public Layer
 {
 public:
 	/**

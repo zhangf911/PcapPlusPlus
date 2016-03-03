@@ -8,6 +8,7 @@
 #ifdef WIN32
 #include <windows.h>
 #endif
+#include <Macros.h>
 
 /// @file
 
@@ -17,7 +18,7 @@
  * @struct SystemCore
  * Represents data of 1 CPU core. Current implementation supports up to 32 cores
  */
-struct SystemCore
+struct PCAPPP_EXPORT SystemCore
 {
 	/**
 	 * Core position in a 32-bit mask. For each core this attribute holds a 4B integer where only 1 bit is set, according to the core ID.
@@ -42,7 +43,7 @@ struct SystemCore
  * @struct SystemCores
  * Contains static representation to all 32 cores and a static array to map core ID (integer) to a SystemCore struct
  */
-struct SystemCores
+struct PCAPPP_EXPORT SystemCores
 {
 	/**
 	 * Static representation of core #0
@@ -185,13 +186,13 @@ typedef uint32_t CoreMask;
  * Get total number of cores on device
  * @return Total number of CPU cores on device
  */
-int getNumOfCores();
+int PCAPPP_EXPORT getNumOfCores();
 
 /**
  * Create a core mask for all cores available on machine
  * @return A core mask for all cores available on machine
  */
-CoreMask getCoreMaskForAllMachineCores();
+CoreMask PCAPPP_EXPORT getCoreMaskForAllMachineCores();
 
 
 /**
@@ -199,7 +200,7 @@ CoreMask getCoreMaskForAllMachineCores();
  * @param[in] cores A vector of SystemCore instances
  * @return A core mask representing these cores
  */
-CoreMask createCoreMaskFromCoreVector(std::vector<SystemCore> cores);
+CoreMask PCAPPP_EXPORT createCoreMaskFromCoreVector(std::vector<SystemCore> cores);
 
 
 /**
@@ -207,7 +208,7 @@ CoreMask createCoreMaskFromCoreVector(std::vector<SystemCore> cores);
  * @param[in] coreIds A vector of core IDs
  * @return A core mask representing these cores
  */
-CoreMask createCoreMaskFromCoreIds(std::vector<int> coreIds);
+CoreMask PCAPPP_EXPORT createCoreMaskFromCoreIds(std::vector<int> coreIds);
 
 
 /**
@@ -215,14 +216,14 @@ CoreMask createCoreMaskFromCoreIds(std::vector<int> coreIds);
  * @param[in] coreMask The input core mask
  * @param[out] resultVec The vector that will contain the system cores
  */
-void createCoreVectorFromCoreMask(CoreMask coreMask, std::vector<SystemCore>& resultVec);
+void PCAPPP_EXPORT createCoreVectorFromCoreMask(CoreMask coreMask, std::vector<SystemCore>& resultVec);
 
 /**
  * Execute a shell command and return its output
  * @param[in] command The command to run
  * @return The output of the command (both stdout and stderr)
  */
-std::string executeShellCommand(const std::string command);
+std::string PCAPPP_EXPORT executeShellCommand(const std::string command);
 
 
 /**
@@ -230,7 +231,7 @@ std::string executeShellCommand(const std::string command);
  * A singleton class that provides callbacks for events that occur during application life-cycle such as ctrl+c pressed,
  * application closed, killed, etc.
  */
-class ApplicationEventHandler
+class PCAPPP_EXPORT ApplicationEventHandler
 {
 public:
 	/**

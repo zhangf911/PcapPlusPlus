@@ -197,7 +197,7 @@ struct TcpOptionData
  * @class TcpLayer
  * Represents a TCP (Transmission Control Protocol) protocol layer
  */
-class TcpLayer : public Layer
+class PCAPPP_EXPORT TcpLayer : public Layer
 {
 public:
 	/**

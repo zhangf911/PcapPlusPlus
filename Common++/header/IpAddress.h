@@ -4,6 +4,7 @@
 #include <memory>
 #include <stdint.h>
 #include <string>
+#include <Macros.h>
 
 #define MAX_ADDR_STRING_LEN 40 //xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx
 
@@ -14,7 +15,7 @@
  * Base class for IPv4Address and IPv6Address. It's an abstract class and cannot be used as is.
  * The only useful method in this class are the 2 static methods that constructs an IP address class from string
  */
-class IPAddress
+class PCAPPP_EXPORT IPAddress
 {
 protected:
 	bool m_IsValid;
@@ -83,7 +84,7 @@ struct in_addr;
  * Represents an IPv4 address (of type XXX.XXX.XXX.XXX). An instance of this class can be constructed from string,
  * 4-byte integer or from the in_addr struct. It can be converted to each of these types
  */
-class IPv4Address : public IPAddress
+class PCAPPP_EXPORT IPv4Address : public IPAddress
 {
 private:
 	in_addr* m_pInAddr;
@@ -182,7 +183,7 @@ struct in6_addr;
  * Represents an IPv6 address (of type xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx). An instance of this class can be constructed from string,
  * 16-byte array or from the in6_addr struct. It can be converted or copied to each of these types
  */
-class IPv6Address : public IPAddress
+class PCAPPP_EXPORT IPv6Address : public IPAddress
 {
 private:
 	in6_addr* m_pInAddr;

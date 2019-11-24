@@ -112,7 +112,7 @@ HttpRequestLayer& HttpRequestLayer::operator=(const HttpRequestLayer& other)
 }
 
 
-std::string HttpRequestLayer::getUrl()
+std::string HttpRequestLayer::getUrl() const
 {
 	HeaderField* hostField = getFieldByName(PCPP_HTTP_HOST_FIELD);
 	if (hostField == NULL)
@@ -126,7 +126,7 @@ HttpRequestLayer::~HttpRequestLayer()
 	delete m_FirstLine;
 }
 
-std::string HttpRequestLayer::toString()
+std::string HttpRequestLayer::toString() const
 {
 	static const int maxLengthToPrint = 120;
 	std::string result = "HTTP request, ";
@@ -194,7 +194,7 @@ HttpRequestFirstLine::HttpRequestFirstLine(HttpRequestLayer* httpRequest) : m_Ht
 	parseVersion();
 
 	char* endOfFirstLine;
-	if ((endOfFirstLine = (char *)memchr((char*)(m_HttpRequest->m_Data + m_VersionOffset), '\n', m_HttpRequest->m_DataLen-(size_t)m_VersionOffset)) != NULL)
+	if ((endOfFirstLine = (char*)memchr((char*)(m_HttpRequest->m_Data + m_VersionOffset), '\n', m_HttpRequest->m_DataLen-(size_t)m_VersionOffset)) != NULL)
 	{
 		m_FirstLineEndOffset = endOfFirstLine - (char*)m_HttpRequest->m_Data + 1;
 		m_IsComplete = true;
@@ -205,7 +205,10 @@ HttpRequestFirstLine::HttpRequestFirstLine(HttpRequestLayer* httpRequest) : m_Ht
 		m_IsComplete = false;
 	}
 
-	LOG_DEBUG("Method='%s'; HTTP version='%s'; URI='%s'", MethodEnumToString[m_Method].c_str(), VersionEnumToString[m_Version].c_str(), getUri().c_str());
+	LOG_DEBUG("Method='%s'; HTTP version='%s'; URI='%s'",
+			m_Method == HttpRequestLayer::HttpMethodUnknown? "Unknown" : MethodEnumToString[m_Method].c_str(),
+			VersionEnumToString[m_Version].c_str(),
+			getUri().c_str());
 }
 
 HttpRequestFirstLine::HttpRequestFirstLine(HttpRequestLayer* httpRequest, HttpRequestLayer::HttpMethod method, HttpVersion version, std::string uri)
@@ -426,17 +429,18 @@ bool HttpRequestFirstLine::setMethod(HttpRequestLayer::HttpMethod newMethod)
 
 	memcpy(m_HttpRequest->m_Data, MethodEnumToString[newMethod].c_str(), MethodEnumToString[newMethod].length());
 
+	m_Method = newMethod;
 	m_UriOffset += lengthDifference;
 	m_VersionOffset += lengthDifference;
 
 	return true;
 }
 
-std::string HttpRequestFirstLine::getUri()
+std::string HttpRequestFirstLine::getUri() const
 {
 	std::string result;
 	if (m_UriOffset != -1 && m_VersionOffset != -1)
-		result.assign((char*)(m_HttpRequest->m_Data + m_UriOffset), m_VersionOffset-6-m_UriOffset);
+		result.assign((const char*)m_HttpRequest->m_Data + m_UriOffset, m_VersionOffset - 6 - m_UriOffset);
 
 	//else first line is illegal, return empty string
 
@@ -489,6 +493,8 @@ void HttpRequestFirstLine::setVersion(HttpVersion newVersion)
 
 	char* verPos = (char*)(m_HttpRequest->m_Data + m_VersionOffset);
 	memcpy(verPos, VersionEnumToString[newVersion].c_str(), 3);
+
+	m_Version = newVersion;
 }
 
 
@@ -725,7 +731,7 @@ HeaderField* HttpResponseLayer::setContentLength(int contentLength, const std::s
 	return contentLengthField;
 }
 
-int HttpResponseLayer::getContentLength()
+int HttpResponseLayer::getContentLength() const
 {
 	std::string contentLengthFieldName(PCPP_HTTP_CONTENT_LENGTH_FIELD);
 	std::transform(contentLengthFieldName.begin(), contentLengthFieldName.end(), contentLengthFieldName.begin(), ::tolower);
@@ -735,7 +741,7 @@ int HttpResponseLayer::getContentLength()
 	return 0;
 }
 
-std::string HttpResponseLayer::toString()
+std::string HttpResponseLayer::toString() const
 {
 	static const int maxLengthToPrint = 120;
 	std::string result = "HTTP response, ";
@@ -773,12 +779,12 @@ std::string HttpResponseLayer::toString()
 
 
 
-int HttpResponseFirstLine::getStatusCodeAsInt()
+int HttpResponseFirstLine::getStatusCodeAsInt() const
 {
 	return StatusCodeEnumToInt[m_StatusCode];
 }
 
-std::string HttpResponseFirstLine::getStatusCodeString()
+std::string HttpResponseFirstLine::getStatusCodeString() const
 {
 	std::string result;
 	int statusStringOffset = 13;
@@ -855,6 +861,8 @@ void HttpResponseFirstLine::setVersion(HttpVersion newVersion)
 
 	char* verPos = (char*)(m_HttpResponse->m_Data + 5);
 	memcpy(verPos, VersionEnumToString[newVersion].c_str(), 3);
+
+	m_Version = newVersion;
 }
 
 HttpResponseLayer::HttpResponseStatusCode HttpResponseFirstLine::validateStatusCode(char* data, size_t dataLen, HttpResponseLayer::HttpResponseStatusCode potentialCode)
@@ -1237,7 +1245,7 @@ HttpResponseFirstLine::HttpResponseFirstLine(HttpResponseLayer* httpResponse) : 
 
 
 	char* endOfFirstLine;
-	if ((endOfFirstLine = (char *)memchr((char*)(m_HttpResponse->m_Data), '\n', m_HttpResponse->m_DataLen)) != NULL)
+	if ((endOfFirstLine = (char*)memchr((char*)(m_HttpResponse->m_Data), '\n', m_HttpResponse->m_DataLen)) != NULL)
 	{
 		m_FirstLineEndOffset = endOfFirstLine - (char*)m_HttpResponse->m_Data + 1;
 		m_IsComplete = true;
@@ -1248,7 +1256,10 @@ HttpResponseFirstLine::HttpResponseFirstLine(HttpResponseLayer* httpResponse) : 
 		m_IsComplete = false;
 	}
 
-	LOG_DEBUG("Version='%s'; Status code=%d '%s'", VersionEnumToString[m_Version].c_str(), StatusCodeEnumToInt[m_StatusCode], getStatusCodeString().c_str());
+	LOG_DEBUG("Version='%s'; Status code=%d '%s'",
+			m_Version == HttpVersionUnknown ? "Unknown" : VersionEnumToString[m_Version].c_str(),
+			m_StatusCode == HttpResponseLayer::HttpStatusCodeUnknown ? 0 : StatusCodeEnumToInt[m_StatusCode],
+			getStatusCodeString().c_str());
 }
 
 

@@ -3,9 +3,13 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 #include "ProtocolType.h"
 #include <stdint.h>
 #include "ArpLayer.h"
+
+//Forward Declaration - used in GeneralFilter
+struct bpf_program;
 
 /**
  * @file
@@ -29,6 +33,8 @@
 */
 namespace pcpp
 {
+	//Forward Declartation - used in GeneralFilter
+	class RawPacket;
 
 	/**
 	 * An enum that contains direction (source or destination)
@@ -71,6 +77,15 @@ namespace pcpp
 	 */
 	class GeneralFilter
 	{
+	protected:
+		bpf_program* m_program;
+		std::string m_lastProgramString;
+
+		/**
+		* Free the held program and any resources allocated for it.
+		*/
+		void freeProgram();
+
 	public:
 		/**
 		 * A method that parses the class instance into BPF string format
@@ -79,9 +94,46 @@ namespace pcpp
 		virtual void parseToString(std::string& result) = 0;
 
 		/**
-		 * Virtual destructor, does nothing for this class
+		* Match a raw packet with a given BPF filter.
+		* @param[in] rawPacket A pointer to the raw packet to match the BPF filter with
+		* @return True if a raw packet matches the BPF filter or false otherwise
+		*/
+		bool matchPacketWithFilter(RawPacket* rawPacket);
+
+		GeneralFilter() : m_program(NULL) {}
+
+		/**
+		 * Virtual destructor, frees the bpf program
 		 */
-		virtual ~GeneralFilter();
+		virtual ~GeneralFilter() { freeProgram(); }
+	};
+
+	/**
+	 * @class BPFStringFilter
+	 * This class can be loaded with a BPF filter string and then can be used to verify the string is valid.<BR>
+	 */
+	class BPFStringFilter : public GeneralFilter
+	{
+	private:
+		const std::string m_filterStr;
+
+	public:
+		BPFStringFilter(const std::string& filterStr) : m_filterStr(filterStr) {}
+
+		virtual ~BPFStringFilter() {}
+
+		/**
+		 * A method that parses the class instance into BPF string format
+		 * @param[out] result An empty string that the parsing will be written into. If the string isn't empty, its content will be overridden
+		 * If the filter is not valid the result will be an empty string
+		 */
+		virtual void parseToString(std::string& result);
+
+		/**
+		* Verify the filter is valid
+		* @return True if the filter is valid or false otherwise
+		*/
+		bool verifyFilter();
 	};
 
 
@@ -96,7 +148,7 @@ namespace pcpp
 		Direction m_Dir;
 	protected:
 		void parseDirection(std::string& directionAsString);
-		inline Direction getDir() { return m_Dir; }
+		Direction getDir() const { return m_Dir; }
 		IFilterWithDirection(Direction dir) { m_Dir = dir; }
 	public:
 		/**
@@ -119,7 +171,7 @@ namespace pcpp
 		FilterOperator m_Operator;
 	protected:
 		std::string parseOperator();
-		inline FilterOperator getOperator() { return m_Operator; }
+		FilterOperator getOperator() const { return m_Operator; }
 		IFilterWithOperator(FilterOperator op) { m_Operator = op; }
 	public:
 		/**
@@ -143,8 +195,8 @@ namespace pcpp
 		std::string m_Address;
 		std::string m_IPv4Mask;
 		int m_Len;
-		void convertToIPAddressWithMask(std::string& ipAddrmodified, std::string& mask);
-		void convertToIPAddressWithLen(std::string& ipAddrmodified, int& len);
+		void convertToIPAddressWithMask(std::string& ipAddrmodified, std::string& mask) const;
+		void convertToIPAddressWithLen(std::string& ipAddrmodified, int& len) const;
 	public:
 		/**
 		 * The basic constructor that creates the filter from an IPv4 address and direction (source or destination)
@@ -201,12 +253,12 @@ namespace pcpp
 
 
 	/**
-	 * @class IpV4IDFilter
+	 * @class IPv4IDFilter
 	 * A class for filtering IPv4 traffic by IP ID field of the IPv4 protocol, For example:
 	 * "filter only IPv4 traffic which IP ID is greater than 1234"<BR>
 	 * For deeper understanding of the filter concept please refer to PcapFilter.h
 	 */
-	class IpV4IDFilter : public IFilterWithOperator
+	class IPv4IDFilter : public IFilterWithOperator
 	{
 	private:
 		uint16_t m_IpID;
@@ -216,7 +268,7 @@ namespace pcpp
 		 * @param[in] ipID The IP ID to filter
 		 * @param[in] op The operator to use (e.g "equal", "greater than", etc.)
 		 */
-		IpV4IDFilter(uint16_t ipID, FilterOperator op) : IFilterWithOperator(op), m_IpID(ipID) {}
+		IPv4IDFilter(uint16_t ipID, FilterOperator op) : IFilterWithOperator(op), m_IpID(ipID) {}
 
 		void parseToString(std::string& result);
 
@@ -230,12 +282,12 @@ namespace pcpp
 
 
 	/**
-	 * @class IpV4TotalLengthFilter
+	 * @class IPv4TotalLengthFilter
 	 * A class for filtering IPv4 traffic by "total length" field of the IPv4 protocol, For example:
 	 * "filter only IPv4 traffic which "total length" value is less than 60B"<BR>
 	 * For deeper understanding of the filter concept please refer to PcapFilter.h
 	 */
-	class IpV4TotalLengthFilter : public IFilterWithOperator
+	class IPv4TotalLengthFilter : public IFilterWithOperator
 	{
 	private:
 		uint16_t m_TotalLength;
@@ -245,7 +297,7 @@ namespace pcpp
 		 * @param[in] totalLength The total length value to filter
 		 * @param[in] op The operator to use (e.g "equal", "greater than", etc.)
 		 */
-		IpV4TotalLengthFilter(uint16_t totalLength, FilterOperator op) : IFilterWithOperator(op), m_TotalLength(totalLength) {}
+		IPv4TotalLengthFilter(uint16_t totalLength, FilterOperator op) : IFilterWithOperator(op), m_TotalLength(totalLength) {}
 
 		void parseToString(std::string& result);
 
@@ -411,6 +463,12 @@ namespace pcpp
 		 */
 		void addFilter(GeneralFilter* filter) { m_FilterList.push_back(filter); }
 
+		/**
+		 * Remove the current filters and set new ones
+		 * @param[in] filters The new filters to set. The previous ones will be removed
+		 */
+		void setFilters(std::vector<GeneralFilter*>& filters);
+
 		void parseToString(std::string& result);
 	};
 
@@ -482,7 +540,8 @@ namespace pcpp
 	/**
 	 * @class ProtoFilter
 	 * A class for filtering traffic by protocol. Notice not all protocols are supported, only the following are supported:
-	 * ::TCP, ::UDP, ::ICMP, ::VLAN, ::IPv4, ::IPv6, ::ARP, ::Ethernet. <BR>
+	 * ::TCP, ::UDP, ::ICMP, ::VLAN, ::IPv4, ::IPv6, ::ARP, ::Ethernet, ::GRE (distinguish between ::GREv0 and ::GREv1 is not supported), 
+	 * ::IGMP (distinguish between ::IGMPv1, ::IGMPv2 and ::IGMPv3 is not supported). <BR>
 	 * For deeper understanding of the filter concept please refer to PcapFilter.h
 	 */
 	class ProtoFilter : public GeneralFilter

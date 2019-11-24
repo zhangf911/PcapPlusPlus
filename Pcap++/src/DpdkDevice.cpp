@@ -22,295 +22,12 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#define MBUF_DATA_SIZE 2048
-
-#define MBUF_SIZE (MBUF_DATA_SIZE + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
-
 #define MAX_BURST_SIZE 64
 
 #define MEMPOOL_CACHE_SIZE 256
 
 namespace pcpp
 {
-
-/**
- * ===================
- * Class MBufRawPacket
- * ===================
- */
-
-MBufRawPacket::~MBufRawPacket()
-{
-	if (m_MBuf != NULL && m_FreeMbuf)
-	{
-		rte_pktmbuf_free(m_MBuf);
-	}
-}
-
-bool MBufRawPacket::init(DpdkDevice* device)
-{
-	if (m_MBuf != NULL)
-	{
-		LOG_ERROR("MBufRawPacket already initialized");
-		return false;
-	}
-
-	m_MBuf = rte_pktmbuf_alloc(device->m_MBufMempool);
-	if (m_MBuf == NULL)
-	{
-		LOG_ERROR("Couldn't allocate mbuf");
-		return false;
-	}
-
-	m_Device = device;
-
-	return true;
-}
-
-bool MBufRawPacket::initFromRawPacket(const RawPacket* rawPacket, DpdkDevice* device)
-{
-	if (!init(device))
-		return false;
-
-	m_RawPacketSet = false;
-
-	// mbuf is allocated with length of 0, need to adjust it to the size of other
-	if (rte_pktmbuf_append(m_MBuf, rawPacket->getRawDataLen()) == NULL)
-	{
-		LOG_ERROR("Couldn't append %d bytes to mbuf", rawPacket->getRawDataLen());
-		return false;
-	}
-
-	m_pRawData = rte_pktmbuf_mtod(m_MBuf, uint8_t*);
-	m_RawDataLen = rte_pktmbuf_pkt_len(m_MBuf);
-
-	copyDataFrom(*rawPacket, false);
-
-	return true;
-}
-
-MBufRawPacket::MBufRawPacket(const MBufRawPacket& other)
-{
-	m_DeleteRawDataAtDestructor = false;
-	m_MBuf = NULL;
-	m_RawDataLen = 0;
-	m_RawPacketSet = false;
-	m_pRawData = NULL;
-	m_Device = other.m_Device;
-
-	rte_mbuf* newMbuf = rte_pktmbuf_alloc(other.m_MBuf->pool);
-	if (newMbuf == NULL)
-	{
-		LOG_ERROR("Couldn't allocate mbuf");
-		return;
-	}
-
-	// mbuf is allocated with length of 0, need to adjust it to the size of other
-	if (rte_pktmbuf_append(newMbuf, other.m_RawDataLen) == NULL)
-	{
-		LOG_ERROR("Couldn't append %d bytes to mbuf", other.m_RawDataLen);
-		return;
-	}
-
-	setMBuf(newMbuf, other.m_TimeStamp);
-
-	m_RawPacketSet = false;
-
-	copyDataFrom(other, false);
-}
-
-MBufRawPacket& MBufRawPacket::operator=(const MBufRawPacket& other)
-{
-	if (m_MBuf == NULL)
-	{
-		LOG_ERROR("MBufRawPacket isn't initialized");
-		return *this;
-	}
-
-	// adjust the size of the mbuf to the new data
-	if (m_RawDataLen < other.m_RawDataLen)
-	{
-		if (rte_pktmbuf_append(m_MBuf, other.m_RawDataLen - m_RawDataLen) == NULL)
-		{
-			LOG_ERROR("Couldn't append %d bytes to mbuf", other.m_RawDataLen - m_RawDataLen);
-			return *this;
-		}
-	}
-	else if (m_RawDataLen > other.m_RawDataLen)
-	{
-		if (rte_pktmbuf_adj(m_MBuf, m_RawDataLen - other.m_RawDataLen) == NULL)
-		{
-			LOG_ERROR("Couldn't remove %d bytes to mbuf", m_RawDataLen - other.m_RawDataLen);
-			return *this;
-		}
-	}
-
-	m_RawPacketSet = false;
-
-	copyDataFrom(other, false);
-
-	return *this;
-}
-
-bool MBufRawPacket::setRawData(const uint8_t* pRawData, int rawDataLen, timeval timestamp, LinkLayerType layerType, int frameLength)
-{
-	if (rawDataLen > MBUF_DATA_SIZE)
-	{
-		LOG_ERROR("Cannot set raw data which length is larger than mBuf max size. mBuf max length: %d; requested length: %d", MBUF_DATA_SIZE, rawDataLen);
-		return false;
-	}
-
-	if (m_MBuf == NULL)
-	{
-		if (!(init(m_Device)))
-		{
-			LOG_ERROR("Couldn't allocate new mBuf");
-			return false;
-		}
-	}
-
-	// adjust the size of the mbuf to the new data
-	if (m_RawDataLen < rawDataLen)
-	{
-		if (rte_pktmbuf_append(m_MBuf, rawDataLen - m_RawDataLen) == NULL)
-		{
-			LOG_ERROR("Couldn't append %d bytes to mbuf", rawDataLen - m_RawDataLen);
-			return false;
-		}
-	}
-	else if (m_RawDataLen > rawDataLen)
-	{
-		if (rte_pktmbuf_adj(m_MBuf, m_RawDataLen - rawDataLen) == NULL)
-		{
-			LOG_ERROR("Couldn't remove %d bytes to mbuf", m_RawDataLen - rawDataLen);
-			return false;
-		}
-	}
-
-	m_pRawData = rte_pktmbuf_mtod(m_MBuf, uint8_t*);
-	m_RawDataLen = rte_pktmbuf_pkt_len(m_MBuf);
-	memcpy(m_pRawData, pRawData, m_RawDataLen);
-	delete [] pRawData;
-	m_TimeStamp = timestamp;
-	m_RawPacketSet = true;
-	m_FrameLength = frameLength;
-	m_linkLayerType = layerType;
-
-	return true;
-}
-
-void MBufRawPacket::clear()
-{
-	if (m_MBuf != NULL && m_FreeMbuf)
-	{
-		rte_pktmbuf_free(m_MBuf);
-	}
-
-	m_MBuf = NULL;
-
-	m_pRawData = NULL;
-
-	RawPacket::clear();
-}
-
-void MBufRawPacket::appendData(const uint8_t* dataToAppend, size_t dataToAppendLen)
-{
-	if (m_MBuf == NULL)
-	{
-		LOG_ERROR("MBufRawPacket not initialized. Please call the init() method");
-		return; //TODO: need to return false here or something
-	}
-
-	char* startOfNewlyAppendedData = rte_pktmbuf_append(m_MBuf, dataToAppendLen);
-	if (startOfNewlyAppendedData == NULL)
-	{
-		LOG_ERROR("Couldn't append %d bytes to RawPacket - not enough room in mBuf", (int)dataToAppendLen);
-		return; //TODO: need to return false here or something
-	}
-
-	RawPacket::appendData(dataToAppend, dataToAppendLen);
-
-	LOG_DEBUG("Appended %d bytes to MBufRawPacket", (int)dataToAppendLen);
-}
-
-void MBufRawPacket::insertData(int atIndex, const uint8_t* dataToInsert, size_t dataToInsertLen)
-{
-	if (m_MBuf == NULL)
-	{
-		LOG_ERROR("MBufRawPacket not initialized. Please call the init() method");
-		return; //TODO: need to return false here or something
-	}
-
-	char* startOfNewlyAppendedData = rte_pktmbuf_append(m_MBuf, dataToInsertLen);
-	if (startOfNewlyAppendedData == NULL)
-	{
-		LOG_ERROR("Couldn't append %d bytes to RawPacket - not enough room in mBuf", (int)dataToInsertLen);
-		return; //TODO: need to return false here or something
-	}
-
-	RawPacket::insertData(atIndex, dataToInsert, dataToInsertLen);
-
-	LOG_DEBUG("Inserted %d bytes to MBufRawPacket", (int)dataToInsertLen);
-}
-
-bool MBufRawPacket::removeData(int atIndex, size_t numOfBytesToRemove)
-{
-	if (m_MBuf == NULL)
-	{
-		LOG_ERROR("MBufRawPacket not initialized. Please call the init() method");
-		return false;
-	}
-
-	if (!RawPacket::removeData(atIndex, numOfBytesToRemove))
-		return false;
-
-	if (rte_pktmbuf_trim(m_MBuf, numOfBytesToRemove) != 0)
-	{
-		LOG_ERROR("Couldn't trim the mBuf");
-		return false;
-	}
-
-	LOG_DEBUG("Trimmed %d bytes from MBufRawPacket", (int)numOfBytesToRemove);
-
-	return true;
-}
-
-bool MBufRawPacket::reallocateData(size_t newBufferLength)
-{
-	if ((int)newBufferLength < m_RawDataLen)
-	{
-		LOG_ERROR("Cannot reallocate mBuf raw packet to a smaller size. Current data length: %d; requested length: %d", m_RawDataLen, (int)newBufferLength);
-		return false;
-	}
-
-	if (newBufferLength > MBUF_DATA_SIZE)
-	{
-		LOG_ERROR("Cannot reallocate mBuf raw packet to a size larger than mBuf data. mBuf max length: %d; requested length: %d", MBUF_DATA_SIZE, (int)newBufferLength);
-		return false;
-	}
-
-	// no need to do any memory allocation because mbuf is already allocated
-
-	return true;
-}
-
-void MBufRawPacket::setMBuf(struct rte_mbuf* mBuf, timeval timestamp)
-{
-	if (m_MBuf != NULL && m_FreeMbuf)
-		rte_pktmbuf_free(m_MBuf);
-
-	if (mBuf == NULL)
-	{
-		LOG_ERROR("mbuf to set is NULL");
-		return;
-	}
-
-	m_MBuf = mBuf;
-	RawPacket::setRawData(rte_pktmbuf_mtod(mBuf, const uint8_t*), rte_pktmbuf_pkt_len(mBuf), timestamp, LINKTYPE_ETHERNET);
-}
-
-
-
 
 /**
  * ================
@@ -340,7 +57,11 @@ DpdkDevice::DpdkDevice(int port, uint32_t mBufPoolSize)
 {
 	snprintf((char*)m_DeviceName, 30, "DPDK_%d", m_Id);
 
+#if (RTE_VER_YEAR > 19) || (RTE_VER_YEAR == 19 && RTE_VER_MONTH >= 8)
+	struct rte_ether_addr etherAddr;
+#else
 	struct ether_addr etherAddr;
+#endif
 	rte_eth_macaddr_get((uint8_t) m_Id, &etherAddr);
 	m_MacAddress = MacAddress(etherAddr.addr_bytes[0], etherAddr.addr_bytes[1],
 			etherAddr.addr_bytes[2], etherAddr.addr_bytes[3],
@@ -380,7 +101,7 @@ DpdkDevice::~DpdkDevice()
 		delete [] m_TxBufferLastDrainTsc;
 }
 
-uint32_t DpdkDevice::getCurrentCoreId()
+uint32_t DpdkDevice::getCurrentCoreId() const
 {
 	return rte_lcore_id();
 }
@@ -461,6 +182,19 @@ void DpdkDevice::close()
 	m_NumOfTxQueuesOpened = 0;
 	rte_eth_dev_stop(m_Id);
 	LOG_DEBUG("Called rte_eth_dev_stop for device [%s]", m_DeviceName);
+
+	if (m_TxBuffers != NULL)
+	{
+		delete [] m_TxBuffers;
+		m_TxBuffers = NULL;
+	}
+
+	if (m_TxBufferLastDrainTsc != NULL)
+	{
+		delete [] m_TxBufferLastDrainTsc;
+		m_TxBufferLastDrainTsc = NULL;
+	}
+	
 	m_DeviceOpened = false;
 }
 
@@ -503,11 +237,13 @@ bool DpdkDevice::configurePort(uint8_t numOfRxQueues, uint8_t numOfTxQueues)
 	struct rte_eth_conf portConf;
 	memset(&portConf,0,sizeof(rte_eth_conf));
 	portConf.rxmode.split_hdr_size = DPDK_COFIG_SPLIT_HEADER_SIZE;
+#if (RTE_VER_YEAR < 18) || (RTE_VER_YEAR == 18 && RTE_VER_MONTH < 11)
 	portConf.rxmode.header_split = DPDK_COFIG_HEADER_SPLIT;
 	portConf.rxmode.hw_ip_checksum = DPDK_COFIG_HW_IP_CHECKSUM;
 	portConf.rxmode.hw_vlan_filter = DPDK_COFIG_HW_VLAN_FILTER;
 	portConf.rxmode.jumbo_frame = DPDK_COFIG_JUMBO_FRAME;
 	portConf.rxmode.hw_strip_crc = DPDK_COFIG_HW_STRIP_CRC;
+#endif
 	portConf.rxmode.mq_mode = DPDK_CONFIG_MQ_MODE;
 	portConf.rx_adv_conf.rss_conf.rss_key = m_Config.rssKey;
 	portConf.rx_adv_conf.rss_conf.rss_key_len = m_Config.rssKeyLength;
@@ -609,21 +345,21 @@ bool DpdkDevice::initQueues(uint8_t numOfRxQueuesToInit, uint8_t numOfTxQueuesTo
 
 bool DpdkDevice::initMemPool(struct rte_mempool*& memPool, const char* mempoolName, uint32_t mBufPoolSize)
 {
-    bool ret = false;
+	bool ret = false;
 
-    // create mbuf pool
-    memPool = rte_pktmbuf_pool_create(mempoolName, mBufPoolSize, MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
-
-    if (memPool == NULL)
+	// create mbuf pool
+	memPool = rte_pktmbuf_pool_create(mempoolName, mBufPoolSize, MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
+	if (memPool == NULL)
 	{
-		LOG_ERROR("Failed to create packets memory pool for port %d, pool name: %s", m_Id, mempoolName);
+		LOG_ERROR("Failed to create packets memory pool for port %d, pool name: %s. Error was: '%s' [Error code: %d]",
+			m_Id, mempoolName, rte_strerror(rte_errno), rte_errno);
 	}
 	else
 	{
 		LOG_DEBUG("Successfully initialized packets pool of size [%d] for device [%s]", mBufPoolSize, m_DeviceName);
 		ret = true;
 	}
-    return ret;
+	return ret;
 }
 
 bool DpdkDevice::startDevice()
@@ -631,7 +367,7 @@ bool DpdkDevice::startDevice()
 	int ret = rte_eth_dev_start((uint8_t) m_Id);
 	if (ret < 0)
 	{
-	    LOG_ERROR("Failed to start device %d. Error is %d", m_Id, ret);
+		LOG_ERROR("Failed to start device %d. Error is %d", m_Id, ret);
 		return false;
 	}
 
@@ -659,7 +395,7 @@ void DpdkDevice::clearCoreConfiguration()
 	}
 }
 
-int DpdkDevice::getCoresInUseCount()
+int DpdkDevice::getCoresInUseCount() const
 {
 	int res = 0;
 	for (int i = 0; i < MAX_NUM_OF_CORES; i++)
@@ -712,12 +448,17 @@ void DpdkDevice::setDeviceInfo()
 	else
 		m_PMDType = PMD_UNKNOWN;
 
-	m_PciAddress = PciAddress(
-			portInfo.pci_dev->addr.domain,
-			portInfo.pci_dev->addr.bus,
-			portInfo.pci_dev->addr.devid,
-			portInfo.pci_dev->addr.function);
-
+#if (RTE_VER_YEAR < 18) || (RTE_VER_YEAR == 18 && RTE_VER_MONTH < 5) // before 18.05
+	char pciName[30];
+	#if (RTE_VER_YEAR > 17) || (RTE_VER_YEAR == 17 && RTE_VER_MONTH >= 11) // 17.11 - 18.02
+	rte_pci_device_name(&(portInfo.pci_dev->addr), pciName, 30);
+	#else // 16.11 - 17.11
+	rte_eal_pci_device_name(&(portInfo.pci_dev->addr), pciName, 30);
+	#endif
+	m_PciAddress = std::string(pciName);
+#else // 18.05 forward
+	m_PciAddress = std::string(portInfo.device->name);
+#endif 
 
 	LOG_DEBUG("Device [%s] has %d RX queues", m_DeviceName, portInfo.max_rx_queues);
 	LOG_DEBUG("Device [%s] has %d TX queues", m_DeviceName, portInfo.max_tx_queues);
@@ -727,7 +468,7 @@ void DpdkDevice::setDeviceInfo()
 }
 
 
-bool DpdkDevice::isVirtual()
+bool DpdkDevice::isVirtual() const
 {
 	switch (m_PMDType)
 	{
@@ -746,7 +487,7 @@ bool DpdkDevice::isVirtual()
 }
 
 
-void DpdkDevice::getLinkStatus(LinkStatus& linkStatus)
+void DpdkDevice::getLinkStatus(LinkStatus& linkStatus) const
 {
 	struct rte_eth_link link;
 	rte_eth_link_get((uint8_t) m_Id, &link);
@@ -821,23 +562,23 @@ bool DpdkDevice::startCaptureSingleThread(OnDpdkPacketsArriveCallback onPacketsA
 
 	for (int coreId = 0; coreId < MAX_NUM_OF_CORES; coreId++)
 	{
-    	if (coreId == (int)rte_get_master_lcore() || !rte_lcore_is_enabled(coreId))
-    		continue;
+		if (coreId == (int)rte_get_master_lcore() || !rte_lcore_is_enabled(coreId))
+			continue;
 
-    	m_CoreConfiguration[coreId].IsCoreInUse = true;
-    	m_CoreConfiguration[coreId].RxQueueId = 0;
+		m_CoreConfiguration[coreId].IsCoreInUse = true;
+		m_CoreConfiguration[coreId].RxQueueId = 0;
 
-    	LOG_DEBUG("Trying to start capturing on core %d", coreId);
-    	int err = rte_eal_remote_launch(dpdkCaptureThreadMain, (void*)this, coreId);
-    	if (err != 0)
-    	{
-    		LOG_ERROR("Cannot create capture thread for device '%s'", m_DeviceName);
-        	m_CoreConfiguration[coreId].IsCoreInUse = false;
-    		return false;
-    	}
+		LOG_DEBUG("Trying to start capturing on core %d", coreId);
+		int err = rte_eal_remote_launch(dpdkCaptureThreadMain, (void*)this, coreId);
+		if (err != 0)
+		{
+			LOG_ERROR("Cannot create capture thread for device '%s'", m_DeviceName);
+				m_CoreConfiguration[coreId].IsCoreInUse = false;
+			return false;
+		}
 
-    	LOG_DEBUG("Capturing started for device [%s]", m_DeviceName);
-    	return true;
+		LOG_DEBUG("Capturing started for device [%s]", m_DeviceName);
+		return true;
 	}
 
 	LOG_ERROR("Could not find initialized core so capturing thread cannot be initialized");
@@ -946,7 +687,7 @@ int DpdkDevice::dpdkCaptureThreadMain(void *ptr)
 
 #define nanosec_gap(begin, end) ((end.tv_sec - begin.tv_sec) * 1000000000.0 + (end.tv_nsec - begin.tv_nsec))
 
-void DpdkDevice::getStatistics(DpdkDeviceStats& stats)
+void DpdkDevice::getStatistics(DpdkDeviceStats& stats) const
 {
 	timespec timestamp;
 	clock_gettime(CLOCK_MONOTONIC, &timestamp);
@@ -1013,7 +754,7 @@ bool DpdkDevice::setFilter(std::string filterAsString)
 	return false;
 }
 
-uint16_t DpdkDevice::receivePackets(MBufRawPacketVector& rawPacketsArr, uint16_t rxQueueId)
+uint16_t DpdkDevice::receivePackets(MBufRawPacketVector& rawPacketsArr, uint16_t rxQueueId) const
 {
 	if (!m_DeviceOpened)
 	{
@@ -1058,7 +799,7 @@ uint16_t DpdkDevice::receivePackets(MBufRawPacketVector& rawPacketsArr, uint16_t
 	return numOfPktsReceived;
 }
 
-uint16_t DpdkDevice::receivePackets(MBufRawPacket** rawPacketsArr, uint16_t rawPacketArrLength, uint16_t rxQueueId)
+uint16_t DpdkDevice::receivePackets(MBufRawPacket** rawPacketsArr, uint16_t rawPacketArrLength, uint16_t rxQueueId) const
 {
 	if (unlikely(!m_DeviceOpened))
 	{
@@ -1108,7 +849,7 @@ uint16_t DpdkDevice::receivePackets(MBufRawPacket** rawPacketsArr, uint16_t rawP
 	return packetsReceived;
 }
 
-uint16_t DpdkDevice::receivePackets(Packet** packetsArr, uint16_t packetsArrLength, uint16_t rxQueueId)
+uint16_t DpdkDevice::receivePackets(Packet** packetsArr, uint16_t packetsArrLength, uint16_t rxQueueId) const
 {
 	if (unlikely(!m_DeviceOpened))
 	{
@@ -1294,8 +1035,8 @@ uint16_t DpdkDevice::sendPackets(Packet** packetsArr, uint16_t arrLength, uint16
 	for (size_t i = 0; i < arrLength; i++)
 	{
 		MBufRawPacket* rawPacket = NULL;
-
-		if (packetsArr[i]->getRawPacketReadOnly()->getObjectType() != MBUFRAWPACKET_OBJECT_TYPE)
+		uint8_t rawPacketType = packetsArr[i]->getRawPacketReadOnly()->getObjectType();
+		if (rawPacketType != MBUFRAWPACKET_OBJECT_TYPE)
 		{
 			rawPacket = new MBufRawPacket();
 			if (unlikely(!rawPacket->initFromRawPacket(packetsArr[i]->getRawPacketReadOnly(), this)))
@@ -1335,8 +1076,8 @@ uint16_t DpdkDevice::sendPackets(RawPacketVector& rawPacketsVec, uint16_t txQueu
 	for (RawPacketVector::ConstVectorIterator iter = rawPacketsVec.begin(); iter != rawPacketsVec.end(); iter++)
 	{
 		MBufRawPacket* rawPacket = NULL;
-
-		if ((*iter)->getObjectType() != MBUFRAWPACKET_OBJECT_TYPE)
+		uint8_t rawPacketType = (*iter)->getObjectType();
+		if (rawPacketType != MBUFRAWPACKET_OBJECT_TYPE)
 		{
 			rawPacket = new MBufRawPacket();
 			if (unlikely(!rawPacket->initFromRawPacket(*iter, this)))
@@ -1380,7 +1121,8 @@ uint16_t DpdkDevice::sendPackets(MBufRawPacketVector& rawPacketsVec, uint16_t tx
 
 bool DpdkDevice::sendPacket(RawPacket& rawPacket, uint16_t txQueueId, bool useTxBuffer)
 {
-	if (rawPacket.getObjectType() == MBUFRAWPACKET_OBJECT_TYPE)
+	uint8_t rawPacketType = rawPacket.getObjectType();
+	if (rawPacketType == MBUFRAWPACKET_OBJECT_TYPE)
 	{
 		bool packetSent = (sendPacketsInner(txQueueId, (MBufRawPacket*)&rawPacket, getNextPacketFromMBufRawPacket, 1, useTxBuffer) == 1);
 		bool needToFreeMbuf = (!useTxBuffer && !packetSent);
@@ -1412,17 +1154,17 @@ bool DpdkDevice::sendPacket(Packet& packet, uint16_t txQueueId, bool useTxBuffer
 	return sendPacket(*(packet.getRawPacket()), txQueueId);
 }
 
-int DpdkDevice::getAmountOfFreeMbufs()
+int DpdkDevice::getAmountOfFreeMbufs() const
 {
 	return (int)rte_mempool_avail_count(m_MBufMempool);
 }
 
-int DpdkDevice::getAmountOfMbufsInUse()
+int DpdkDevice::getAmountOfMbufsInUse() const
 {
 	return (int)rte_mempool_in_use_count(m_MBufMempool);
 }
 
-uint64_t DpdkDevice::convertRssHfToDpdkRssHf(uint64_t rssHF)
+uint64_t DpdkDevice::convertRssHfToDpdkRssHf(uint64_t rssHF) const
 {
 	if (rssHF == (uint64_t)-1)
 	{
@@ -1496,7 +1238,7 @@ uint64_t DpdkDevice::convertRssHfToDpdkRssHf(uint64_t rssHF)
 	return dpdkRssHF;
 }
 
-uint64_t DpdkDevice::convertDpdkRssHfToRssHf(uint64_t dpdkRssHF)
+uint64_t DpdkDevice::convertDpdkRssHfToRssHf(uint64_t dpdkRssHF) const
 {
 	uint64_t rssHF = 0;
 
@@ -1563,12 +1305,12 @@ uint64_t DpdkDevice::convertDpdkRssHfToRssHf(uint64_t dpdkRssHF)
 	return rssHF;
 }
 
-bool DpdkDevice::isDeviceSupportRssHashFunction(DpdkRssHashFunction rssHF)
+bool DpdkDevice::isDeviceSupportRssHashFunction(DpdkRssHashFunction rssHF) const
 {
 	return isDeviceSupportRssHashFunction((uint64_t)rssHF);
 }
 
-bool DpdkDevice::isDeviceSupportRssHashFunction(uint64_t rssHFMask)
+bool DpdkDevice::isDeviceSupportRssHashFunction(uint64_t rssHFMask) const
 {
 	uint64_t dpdkRssHF = convertRssHfToDpdkRssHf(rssHFMask);
 
@@ -1578,7 +1320,7 @@ bool DpdkDevice::isDeviceSupportRssHashFunction(uint64_t rssHFMask)
 	return ((devInfo.flow_type_rss_offloads & dpdkRssHF) == dpdkRssHF);
 }
 
-uint64_t DpdkDevice::getSupportedRssHashFunctions()
+uint64_t DpdkDevice::getSupportedRssHashFunctions() const
 {
 	rte_eth_dev_info devInfo;
 	rte_eth_dev_info_get(m_Id, &devInfo);

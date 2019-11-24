@@ -154,7 +154,12 @@ bool DpdkDeviceList::initDpdkDevices(uint32_t mBufPoolSizePerDevice)
 	if (m_IsInitialized)
 		return true;
 
-	int numOfPorts = rte_eth_dev_count();
+#if (RTE_VER_YEAR < 18) || (RTE_VER_YEAR == 18 && RTE_VER_MONTH < 5)
+	int numOfPorts = (int)rte_eth_dev_count();
+#else
+	int numOfPorts = (int)rte_eth_dev_count_avail();
+#endif
+
 	if (numOfPorts <= 0)
 	{
 		LOG_ERROR("Zero DPDK ports are initialized. Something went wrong while initializing DPDK");
@@ -170,7 +175,7 @@ bool DpdkDeviceList::initDpdkDevices(uint32_t mBufPoolSizePerDevice)
 		LOG_DEBUG("DpdkDevice #%d: Name='%s', PCI-slot='%s', PMD='%s', MAC Addr='%s'",
 				i,
 				newDevice->getDeviceName().c_str(),
-				newDevice->getPciAddress().toString().c_str(),
+				newDevice->getPciAddress().c_str(),
 				newDevice->getPMDName().c_str(),
 				newDevice->getMacAddress().toString().c_str());
 		m_DpdkDeviceList.push_back(newDevice);
@@ -180,7 +185,7 @@ bool DpdkDeviceList::initDpdkDevices(uint32_t mBufPoolSizePerDevice)
 	return true;
 }
 
-DpdkDevice* DpdkDeviceList::getDeviceByPort(int portId)
+DpdkDevice* DpdkDeviceList::getDeviceByPort(int portId) const
 {
 	if (!isInitialized())
 	{
@@ -196,7 +201,7 @@ DpdkDevice* DpdkDeviceList::getDeviceByPort(int portId)
 	return m_DpdkDeviceList.at(portId);
 }
 
-DpdkDevice* DpdkDeviceList::getDeviceByPciAddress(const PciAddress& pciAddr)
+DpdkDevice* DpdkDeviceList::getDeviceByPciAddress(const std::string& pciAddr) const
 {
 	if (!isInitialized())
 	{
@@ -204,7 +209,7 @@ DpdkDevice* DpdkDeviceList::getDeviceByPciAddress(const PciAddress& pciAddr)
 		return NULL;
 	}
 
-	for (std::vector<DpdkDevice*>::iterator iter = m_DpdkDeviceList.begin(); iter != m_DpdkDeviceList.end(); iter++)
+	for (std::vector<DpdkDevice*>::const_iterator iter = m_DpdkDeviceList.begin(); iter != m_DpdkDeviceList.end(); iter++)
 	{
 		if ((*iter)->getPciAddress() == pciAddr)
 			return (*iter);
@@ -244,7 +249,7 @@ bool DpdkDeviceList::verifyHugePagesAndDpdkDriver()
 	return true;
 }
 
-SystemCore DpdkDeviceList::getDpdkMasterCore()
+SystemCore DpdkDeviceList::getDpdkMasterCore() const
 {
 	return SystemCores::IdToSystemCore[rte_get_master_lcore()];
 }
@@ -264,7 +269,7 @@ void DpdkDeviceList::setDpdkLogLevel(LoggerPP::LogLevel logLevel)
 #endif
 }
 
-LoggerPP::LogLevel DpdkDeviceList::getDpdkLogLevel()
+LoggerPP::LogLevel DpdkDeviceList::getDpdkLogLevel() const
 {
 #if (RTE_VER_YEAR > 17) || (RTE_VER_YEAR == 17 && RTE_VER_MONTH >= 11)
 	if (rte_log_get_global_level() <= RTE_LOG_NOTICE)
@@ -380,6 +385,9 @@ void DpdkDeviceList::stopDpdkWorkerThreads()
 		rte_eal_wait_lcore((*iter)->getCoreId());
 		LOG_DEBUG("Thread on core [%d] stopped", (*iter)->getCoreId());
 	}
+
+	m_WorkerThreads.clear();
+	std::vector<DpdkWorkerThread*>(m_WorkerThreads).swap(m_WorkerThreads);
 
 	LOG_DEBUG("All worker threads stopped");
 }

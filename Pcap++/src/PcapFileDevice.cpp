@@ -13,13 +13,13 @@ namespace pcpp
 
 struct pcap_file_header
 {
-    uint32_t magic;
-    uint16_t version_major;
-    uint16_t version_minor;
-    int32_t thiszone;
-    uint32_t sigfigs;
-    uint32_t snaplen;
-    uint32_t linktype;
+	uint32_t magic;
+	uint16_t version_major;
+	uint16_t version_minor;
+	int32_t thiszone;
+	uint32_t sigfigs;
+	uint32_t snaplen;
+	uint32_t linktype;
 };
 
 struct packet_header
@@ -46,22 +46,21 @@ IFileDevice::~IFileDevice()
 	delete[] m_FileName;
 }
 
-std::string IFileDevice::getFileName()
+std::string IFileDevice::getFileName() const
 {
 	return std::string(m_FileName);
 }
 
 void IFileDevice::close()
 {
-	if (m_PcapDescriptor == NULL)
+	if (m_PcapDescriptor != NULL)
 	{
-		LOG_DEBUG("Pcap descriptor already NULL. Nothing to do");
-		return;
+		pcap_close(m_PcapDescriptor);
+		LOG_DEBUG("Successfully closed file reader device for filename '%s'", m_FileName);
+		m_PcapDescriptor = NULL;
 	}
 
-	pcap_close(m_PcapDescriptor);
-	LOG_DEBUG("Successfully closed file reader device for filename '%s'", m_FileName);
-	m_PcapDescriptor = NULL;
+	m_DeviceOpened = false;
 }
 
 
@@ -86,7 +85,7 @@ IFileReaderDevice* IFileReaderDevice::getReader(const char* fileName)
 		return new PcapFileReaderDevice(fileName);
 }
 
-uint64_t IFileReaderDevice::getFileSize()
+uint64_t IFileReaderDevice::getFileSize() const
 {
 	std::ifstream fileStream(m_FileName, std::ifstream::ate | std::ifstream::binary);
 	return fileStream.tellg();
@@ -119,15 +118,6 @@ int IFileReaderDevice::getNextPackets(RawPacketVector& packetVec, int numOfPacke
 // PcapFileReaderDevice members
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-PcapFileReaderDevice::PcapFileReaderDevice(const char* fileName) : IFileReaderDevice(fileName)
-{
-	m_PcapLinkLayerType = LINKTYPE_ETHERNET;
-}
-
-LinkLayerType PcapFileReaderDevice::getLinkLayerType()
-{
-	return m_PcapLinkLayerType;
-}
 
 bool PcapFileReaderDevice::open()
 {
@@ -150,26 +140,13 @@ bool PcapFileReaderDevice::open()
 	}
 
 	m_PcapLinkLayerType = static_cast<LinkLayerType>(pcap_datalink(m_PcapDescriptor));
-	switch(m_PcapLinkLayerType)
-	{
-		case LINKTYPE_ETHERNET:
-		case LINKTYPE_LINUX_SLL:
-		case LINKTYPE_NULL:
-		case LINKTYPE_RAW:
-		case LINKTYPE_DLT_RAW1:
-		case LINKTYPE_DLT_RAW2:
-			break;
-		default:
-			LOG_ERROR("Cannot open file reader device for filename '%s': the link type %d is not supported", m_FileName, m_PcapLinkLayerType);
-			return false;
-	}
 
 	LOG_DEBUG("Successfully opened file reader device for filename '%s'", m_FileName);
 	m_DeviceOpened = true;
 	return true;
 }
 
-void PcapFileReaderDevice::getStatistics(pcap_stat& stats)
+void PcapFileReaderDevice::getStatistics(pcap_stat& stats) const
 {
 	stats.ps_recv = m_NumOfPacketsRead;
 	stats.ps_drop = m_NumOfPacketsNotParsed;
@@ -320,7 +297,7 @@ bool PcapNgFileReaderDevice::getNextPacket(RawPacket& rawPacket)
 	return getNextPacket(rawPacket, temp);
 }
 
-void PcapNgFileReaderDevice::getStatistics(pcap_stat& stats)
+void PcapNgFileReaderDevice::getStatistics(pcap_stat& stats) const
 {
 	stats.ps_recv = m_NumOfPacketsRead;
 	stats.ps_drop = m_NumOfPacketsNotParsed;
@@ -356,7 +333,7 @@ void PcapNgFileReaderDevice::close()
 }
 
 
-std::string PcapNgFileReaderDevice::getOS()
+std::string PcapNgFileReaderDevice::getOS() const
 {
 	if (m_LightPcapNg == NULL)
 	{
@@ -373,7 +350,7 @@ std::string PcapNgFileReaderDevice::getOS()
 	return std::string(res, len);
 }
 
-std::string PcapNgFileReaderDevice::getHardware()
+std::string PcapNgFileReaderDevice::getHardware() const
 {
 	if (m_LightPcapNg == NULL)
 	{
@@ -390,7 +367,7 @@ std::string PcapNgFileReaderDevice::getHardware()
 	return std::string(res, len);
 }
 
-std::string PcapNgFileReaderDevice::getCaptureApplication()
+std::string PcapNgFileReaderDevice::getCaptureApplication() const
 {
 	if (m_LightPcapNg == NULL)
 	{
@@ -407,7 +384,7 @@ std::string PcapNgFileReaderDevice::getCaptureApplication()
 	return std::string(res, len);
 }
 
-std::string PcapNgFileReaderDevice::getCaptureFileComment()
+std::string PcapNgFileReaderDevice::getCaptureFileComment() const
 {
 	if (m_LightPcapNg == NULL)
 	{
@@ -530,18 +507,12 @@ bool PcapFileWriterDevice::open()
 
 	switch(m_PcapLinkLayerType)
 	{
-		case LINKTYPE_ETHERNET:
-		case LINKTYPE_LINUX_SLL:
-		case LINKTYPE_NULL:
-		case LINKTYPE_DLT_RAW1:
-			break;
 		case LINKTYPE_RAW:
 		case LINKTYPE_DLT_RAW2:
 			LOG_ERROR("The only Raw IP link type supported in libpcap/WinPcap is LINKTYPE_DLT_RAW1, please use that instead");
 			return false;
 		default:
-			LOG_ERROR("The link type %d is not supported", m_PcapLinkLayerType);
-			return false;
+			break;
 	}
 
 	m_NumOfPacketsNotWritten = 0;
@@ -595,7 +566,7 @@ void PcapFileWriterDevice::close()
 	LOG_DEBUG("File writer closed for file '%s'", m_FileName);
 }
 
-void PcapFileWriterDevice::getStatistics(pcap_stat& stats)
+void PcapFileWriterDevice::getStatistics(pcap_stat& stats) const
 {
 	stats.ps_recv = m_NumOfPacketsWritten;
 	stats.ps_drop = m_NumOfPacketsNotWritten;
@@ -662,9 +633,10 @@ bool PcapFileWriterDevice::open(bool appendMode)
 // PcapNgFileWriterDevice members
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-PcapNgFileWriterDevice::PcapNgFileWriterDevice(const char* fileName) : IFileWriterDevice(fileName)
+PcapNgFileWriterDevice::PcapNgFileWriterDevice(const char* fileName, int compressionLevel) : IFileWriterDevice(fileName)
 {
 	m_LightPcapNg = NULL;
+	m_CompressionLevel = compressionLevel;
 	m_CurFilter = "";
 	m_BpfLinkType = -1;
 	m_BpfInitialized = false;
@@ -712,7 +684,7 @@ bool PcapNgFileWriterDevice::open(const char* os, const char* hardware, const ch
 
 	light_pcapng_file_info* info = light_create_file_info(os, hardware, captureApp, fileComment);
 
-	m_LightPcapNg = light_pcapng_open_write(m_FileName, info);
+	m_LightPcapNg = light_pcapng_open_write(m_FileName, info, m_CompressionLevel);
 	if (m_LightPcapNg == NULL)
 	{
 		LOG_ERROR("Error opening file writer device for file '%s': light_pcapng_open_write returned NULL", m_FileName);
@@ -794,7 +766,7 @@ bool PcapNgFileWriterDevice::open()
 
 	light_pcapng_file_info* info = light_create_default_file_info();
 
-	m_LightPcapNg = light_pcapng_open_write(m_FileName, info);
+	m_LightPcapNg = light_pcapng_open_write(m_FileName, info, m_CompressionLevel);
 	if (m_LightPcapNg == NULL)
 	{
 		LOG_ERROR("Error opening file writer device for file '%s': light_pcapng_open_write returned NULL", m_FileName);
@@ -843,7 +815,7 @@ void PcapNgFileWriterDevice::close()
 	LOG_DEBUG("File writer closed for file '%s'", m_FileName);
 }
 
-void PcapNgFileWriterDevice::getStatistics(pcap_stat& stats)
+void PcapNgFileWriterDevice::getStatistics(pcap_stat& stats) const
 {
 	stats.ps_recv = m_NumOfPacketsWritten;
 	stats.ps_drop = m_NumOfPacketsNotWritten;

@@ -2,18 +2,85 @@
 
 #include "PcapFilter.h"
 #include "Logger.h"
+#include "IPv4Layer.h"
 #include <sstream>
 #if defined(WIN32) || defined(WINx64) //for using ntohl, ntohs, etc.
 #include <winsock2.h>
 #elif LINUX
 #include <in.h>
 #endif
+#include <pcap.h>
+#include "RawPacket.h"
 
 namespace pcpp
 {
 
-GeneralFilter::~GeneralFilter()
+bool GeneralFilter::matchPacketWithFilter(RawPacket* rawPacket)
 {
+	std::string filterStr;
+	parseToString(filterStr);
+
+	if (m_program == NULL || m_lastProgramString != filterStr)
+	{
+		freeProgram();
+
+		m_program = new bpf_program();
+
+		LOG_DEBUG("Compiling the filter '%s'", filterStr.c_str());
+		if (pcap_compile_nopcap(9000, pcpp::LINKTYPE_ETHERNET, m_program, filterStr.c_str(), 1, 0) < 0)
+		{
+			//Filter not valid so delete member
+			freeProgram();
+			return false;
+		}
+		m_lastProgramString = filterStr;
+	}
+
+	struct pcap_pkthdr pktHdr;
+	pktHdr.caplen = rawPacket->getRawDataLen();
+	pktHdr.len = rawPacket->getRawDataLen();
+	pktHdr.ts = rawPacket->getPacketTimeStamp();
+
+	return (pcap_offline_filter(m_program, &pktHdr, rawPacket->getRawData()) != 0);
+}
+
+void GeneralFilter::freeProgram()
+{
+	if (m_program)
+	{
+		pcap_freecode(m_program);
+		delete m_program;
+		m_program = NULL;
+		m_lastProgramString.clear();
+	}
+}
+
+
+void BPFStringFilter::parseToString(std::string& result)
+{
+	if (verifyFilter())
+		result = m_filterStr;
+	else
+		result.clear();
+}
+
+bool BPFStringFilter::verifyFilter()
+{
+	//If filter has been built before it must be valid
+	if (m_program)
+		return true;
+
+	m_program = new bpf_program();
+	LOG_DEBUG("Compiling the filter '%s'", m_filterStr.c_str());
+	if (pcap_compile_nopcap(9000, pcpp::LINKTYPE_ETHERNET, m_program, m_filterStr.c_str(), 1, 0) < 0)
+	{
+		//Filter not valid so delete member
+		freeProgram();
+		return false;
+	}
+	m_lastProgramString = m_filterStr;
+
+	return true;
 }
 
 void IFilterWithDirection::parseDirection(std::string& directionAsString)
@@ -53,10 +120,9 @@ std::string IFilterWithOperator::parseOperator()
 	}
 }
 
-void IPFilter::convertToIPAddressWithMask(std::string& ipAddrmodified, std::string& mask)
+void IPFilter::convertToIPAddressWithMask(std::string& ipAddrmodified, std::string& mask) const
 {
 	if (m_IPv4Mask == "")
-
 		return;
 
 	// Handle the mask
@@ -87,7 +153,7 @@ void IPFilter::convertToIPAddressWithMask(std::string& ipAddrmodified, std::stri
 	ipAddrmodified = IPv4Address(addrAsIntAfterMask).toString();
 }
 
-void IPFilter::convertToIPAddressWithLen(std::string& ipAddrmodified, int& len)
+void IPFilter::convertToIPAddressWithLen(std::string& ipAddrmodified, int& len) const
 {
 	if (m_Len == 0)
 		return;
@@ -123,6 +189,7 @@ void IPFilter::convertToIPAddressWithLen(std::string& ipAddrmodified, int& len)
 		}
 
 		ipAddrmodified = IPv6Address(addrAsArr).toString();
+		delete [] addrAsArr;
 	}
 	else
 	{
@@ -151,7 +218,7 @@ void IPFilter::parseToString(std::string& result)
 	}
 }
 
-void IpV4IDFilter::parseToString(std::string& result)
+void IPv4IDFilter::parseToString(std::string& result)
 {
 	std::string op = parseOperator();
 	std::ostringstream stream;
@@ -159,7 +226,7 @@ void IpV4IDFilter::parseToString(std::string& result)
 	result = "ip[4:2] " + op + " " + stream.str();
 }
 
-void IpV4TotalLengthFilter::parseToString(std::string& result)
+void IPv4TotalLengthFilter::parseToString(std::string& result)
 {
 	std::string op = parseOperator();
 	std::ostringstream stream;
@@ -226,6 +293,16 @@ AndFilter::AndFilter(std::vector<GeneralFilter*>& filters)
 	}
 }
 
+void AndFilter::setFilters(std::vector<GeneralFilter*>& filters)
+{
+	m_FilterList.clear();
+
+	for(std::vector<GeneralFilter*>::iterator it = filters.begin(); it != filters.end(); ++it)
+	{
+		m_FilterList.push_back(*it);
+	}
+}
+
 void AndFilter::parseToString(std::string& result)
 {
 	result = "";
@@ -274,6 +351,8 @@ void NotFilter::parseToString(std::string& result)
 void ProtoFilter::parseToString(std::string& result)
 {
 	result = "";
+	std::ostringstream stream;
+
 	switch (m_Proto)
 	{
 	case TCP:
@@ -299,6 +378,14 @@ void ProtoFilter::parseToString(std::string& result)
 		break;
 	case Ethernet:
 		result += "ether";
+		break;
+	case GRE:
+		stream << "proto " << PACKETPP_IPPROTO_GRE;
+		result += stream.str();
+		break;
+	case IGMP:
+		stream << "proto " << PACKETPP_IPPROTO_IGMP;
+		result += stream.str();
 		break;
 	default:
 		break;

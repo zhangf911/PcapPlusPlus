@@ -5,7 +5,7 @@
 #include <winsock2.h>
 #elif LINUX
 #include <in.h> //for using ntohl, ntohs, etc.
-#elif MAC_OS_X
+#elif MAC_OS_X || FREEBSD
 #include <arpa/inet.h> //for using ntohl, ntohs, etc.
 #endif
 #include "Logger.h"
@@ -77,148 +77,89 @@ IPv6FragmentationHeader::IPv6FragmentationHeader(uint32_t fragId, uint16_t fragO
 	fragHdr->fragOffsetAndFlags = fragOffset;
 }
 
-bool IPv6FragmentationHeader::isFirstFragment()
+bool IPv6FragmentationHeader::isFirstFragment() const
 {
 	return (getFragmentOffset() == 0);
 }
 
-bool IPv6FragmentationHeader::isLastFragment()
+bool IPv6FragmentationHeader::isLastFragment() const
 {
 	return (!isMoreFragments());
 }
 
-bool IPv6FragmentationHeader::isMoreFragments()
+bool IPv6FragmentationHeader::isMoreFragments() const
 {
 	uint8_t isMoreFragsBit = (getFragHeader()->fragOffsetAndFlags & (uint16_t)0x0100) >> 8;
 	return (isMoreFragsBit == 1);
 }
 
-uint16_t IPv6FragmentationHeader::getFragmentOffset()
+uint16_t IPv6FragmentationHeader::getFragmentOffset() const
 {
 	uint16_t fragOffset = (ntohs(getFragHeader()->fragOffsetAndFlags & (uint16_t)0xf8ff) >> 3) * 8;
 	return fragOffset;
 }
 
-// ================
-// TLVOptionBuilder
-// ================
+// ====================
+// IPv6TLVOptionBuilder
+// ====================
 
-IPv6TLVOptionHeader::TLVOptionBuilder::TLVOptionBuilder(uint8_t optType, uint8_t optDataLen, const uint8_t* optValue)
-{
-	init(optType, optDataLen, optValue);
-}
-
-IPv6TLVOptionHeader::TLVOptionBuilder::TLVOptionBuilder(uint8_t optType, uint8_t optValue)
-{
-	init(optType, sizeof(uint8_t), &optValue);
-}
-
-IPv6TLVOptionHeader::TLVOptionBuilder::TLVOptionBuilder(uint8_t optType, uint16_t optValue)
-{
-	init(optType, sizeof(uint16_t), (uint8_t*)&optValue);
-}
-
-IPv6TLVOptionHeader::TLVOptionBuilder::TLVOptionBuilder(const TLVOptionBuilder& other )
-{
-	size_t totalSize = other.build()->getTotalSize();
-	m_OptionBuffer = new uint8_t[totalSize];
-	memcpy(m_OptionBuffer, other.m_OptionBuffer, totalSize);
-}
-
-void IPv6TLVOptionHeader::TLVOptionBuilder::init(uint8_t optType, uint8_t optDataLen, const uint8_t* optValue)
+IPv6TLVOptionHeader::IPv6Option IPv6TLVOptionHeader::IPv6TLVOptionBuilder::build() const
 {
 	size_t optionTotalSize = sizeof(uint8_t);
-	if (optType != IPv6TLVOptionHeader::TLVOption::Pad0OptionType)
-		optionTotalSize += sizeof(uint8_t) + optDataLen;
+	if (m_RecType != IPv6TLVOptionHeader::IPv6Option::Pad0OptionType)
+		optionTotalSize += sizeof(uint8_t) + m_RecValueLen;
 
-	m_OptionBuffer = new uint8_t[optionTotalSize];
-	memset(m_OptionBuffer, 0, optionTotalSize);
+	uint8_t* recordBuffer = new uint8_t[optionTotalSize];
+	memset(recordBuffer, 0, optionTotalSize);
 
-	if (optType != IPv6TLVOptionHeader::TLVOption::Pad0OptionType)
+	if (m_RecType != IPv6TLVOptionHeader::IPv6Option::Pad0OptionType)
 	{
-		m_OptionBuffer[0] = optType;
-		m_OptionBuffer[1] = optDataLen;
-		if (optDataLen > 0)
-			memcpy(m_OptionBuffer+2, optValue, optDataLen);
+		recordBuffer[0] = m_RecType;
+		recordBuffer[1] = m_RecValueLen;
+		if (m_RecValueLen > 0)
+			memcpy(recordBuffer+2, m_RecValue, m_RecValueLen);
 	}
-}
 
+	return IPv6Option(recordBuffer);
+}
 
 // ===================
 // IPv6TLVOptionHeader
 // ===================
 
-IPv6TLVOptionHeader::TLVOption* IPv6TLVOptionHeader::getOption(uint8_t optionType)
+IPv6TLVOptionHeader::IPv6Option IPv6TLVOptionHeader::getOption(uint8_t optionType) const
 {
-	// check if there are options at all
-	if (getExtensionLen() <= sizeof(ipv6_ext_base_header))
-		return NULL;
-
-	IPv6TLVOptionHeader::TLVOption* curOpt = getFirstOption();
-	while (curOpt != NULL)
-	{
-		if (curOpt->optionType == optionType)
-			return curOpt;
-
-		curOpt = getNextOption(curOpt);
-	}
-
-	return NULL;
+	return m_OptionReader.getTLVRecord(optionType, getDataPtr() + sizeof(ipv6_ext_base_header), getExtensionLen() - sizeof(ipv6_ext_base_header));
 }
 
-IPv6TLVOptionHeader::TLVOption* IPv6TLVOptionHeader::getFirstOption()
+IPv6TLVOptionHeader::IPv6Option IPv6TLVOptionHeader::getFirstOption() const
 {
-	// check if there are options at all
-	if (getExtensionLen() <= sizeof(ipv6_ext_base_header))
-		return NULL;
-
-	uint8_t* curOptPtr = getDataPtr() + sizeof(ipv6_ext_base_header);
-	return (IPv6TLVOptionHeader::TLVOption*)(curOptPtr);
+	return m_OptionReader.getFirstTLVRecord(getDataPtr() + sizeof(ipv6_ext_base_header), getExtensionLen() - sizeof(ipv6_ext_base_header));
 }
 
-IPv6TLVOptionHeader::TLVOption* IPv6TLVOptionHeader::getNextOption(IPv6TLVOptionHeader::TLVOption* option)
+IPv6TLVOptionHeader::IPv6Option IPv6TLVOptionHeader::getNextOption(IPv6TLVOptionHeader::IPv6Option& option) const
 {
-	if (option == NULL)
-		return NULL;
-
-	// option pointer is out-bounds of the extension memory
-	if (((uint8_t*)option - getDataPtr()) < 0)
-		return NULL;
-
-	// option pointer is out-bounds of the extension memory
-	if ((uint8_t*)option + option->getTotalSize() - getDataPtr() >= (int)getExtensionLen())
-		return NULL;
-
-	IPv6TLVOptionHeader::TLVOption* nextOption = (IPv6TLVOptionHeader::TLVOption*)((uint8_t*)option + option->getTotalSize());
-
-	return nextOption;
+	return m_OptionReader.getNextTLVRecord(option, getDataPtr() + sizeof(ipv6_ext_base_header), getExtensionLen() - sizeof(ipv6_ext_base_header));
 }
 
-size_t IPv6TLVOptionHeader::getOptionCount()
+size_t IPv6TLVOptionHeader::getOptionCount() const
 {
-	if (m_OptionCount != (size_t)-1)
-		return m_OptionCount;
-
-	m_OptionCount = 0;
-	IPv6TLVOptionHeader::TLVOption* curOpt = getFirstOption();
-	while (curOpt != NULL)
-	{
-		m_OptionCount++;
-		curOpt = getNextOption(curOpt);
-	}
-
-	return m_OptionCount;
+	return m_OptionReader.getTLVRecordCount(getDataPtr() + sizeof(ipv6_ext_base_header), getExtensionLen() - sizeof(ipv6_ext_base_header));
 }
 
-IPv6TLVOptionHeader::IPv6TLVOptionHeader(const std::vector<TLVOptionBuilder>& options)
+IPv6TLVOptionHeader::IPv6TLVOptionHeader(const std::vector<IPv6TLVOptionBuilder>& options)
 {
 	m_ExtType = IPv6ExtensionUnknown;
-	m_OptionCount = options.size();
+	m_OptionReader.changeTLVRecordCount(options.size());
 
 	size_t totalSize = sizeof(uint16_t); // nextHeader + headerLen
 
-	for (std::vector<TLVOptionBuilder>::const_iterator iter = options.begin(); iter != options.end(); iter++)
-		totalSize += iter->build()->getTotalSize();
+	for (std::vector<IPv6TLVOptionBuilder>::const_iterator iter = options.begin(); iter != options.end(); iter++)
+	{
+		IPv6Option option = iter->build();
+		totalSize += option.getTotalSize();
+		option.purgeRecordData();
+	}
 
 	while (totalSize % 8 != 0)
 		totalSize++;
@@ -230,19 +171,18 @@ IPv6TLVOptionHeader::IPv6TLVOptionHeader(const std::vector<TLVOptionBuilder>& op
 
 	size_t offset = sizeof(uint16_t);
 
-	for (std::vector<TLVOptionBuilder>::const_iterator iter = options.begin(); iter != options.end(); iter++)
+	for (std::vector<IPv6TLVOptionBuilder>::const_iterator iter = options.begin(); iter != options.end(); iter++)
 	{
-		TLVOption* option = iter->build();
-		memcpy((uint8_t*)(getDataPtr() + offset), iter->getRawBuffer(), option->getTotalSize());
-		offset += option->getTotalSize();
+		IPv6Option option = iter->build();
+		memcpy(getDataPtr() + offset, option.getRecordBasePtr(), option.getTotalSize());
+		offset += option.getTotalSize();
+		option.purgeRecordData();
 	}
 }
 
 IPv6TLVOptionHeader::IPv6TLVOptionHeader(IDataContainer* dataContainer, size_t offset) : IPv6Extension(dataContainer, offset)
 {
-	m_OptionCount = (size_t)-1;
 }
-
 
 // =================
 // IPv6RoutingHeader
@@ -267,20 +207,20 @@ IPv6RoutingHeader::IPv6RoutingHeader(uint8_t routingType, uint8_t segmentsLeft, 
 
 	if (additionalRoutingDataLen > 0 && additionalRoutingData != NULL)
 	{
-		uint8_t* additionalDataPtr = (uint8_t*)(getDataPtr() + sizeof(ipv6_routing_header));
+		uint8_t* additionalDataPtr = getDataPtr() + sizeof(ipv6_routing_header);
 		memcpy(additionalDataPtr, additionalRoutingData, additionalRoutingDataLen);
 	}
 }
 
-uint8_t* IPv6RoutingHeader::getRoutingAdditionalData()
+uint8_t* IPv6RoutingHeader::getRoutingAdditionalData() const
 {
 	if (getExtensionLen() > sizeof(ipv6_routing_header))
-		return (uint8_t*)(getDataPtr() + sizeof(ipv6_routing_header));
+		return getDataPtr() + sizeof(ipv6_routing_header);
 
 	return NULL;
 }
 
-size_t IPv6RoutingHeader::getRoutingAdditionalDataLength()
+size_t IPv6RoutingHeader::getRoutingAdditionalDataLength() const
 {
 	int result = getExtensionLen() - sizeof(ipv6_routing_header);
 	if (result < 0)
@@ -289,7 +229,7 @@ size_t IPv6RoutingHeader::getRoutingAdditionalDataLength()
 	return (size_t)result;
 }
 
-IPv6Address IPv6RoutingHeader::getRoutingAdditionalDataAsIPv6Address(size_t offset)
+IPv6Address IPv6RoutingHeader::getRoutingAdditionalDataAsIPv6Address(size_t offset) const
 {
 
 	size_t routingAddDataLen = getRoutingAdditionalDataLength();
@@ -323,20 +263,20 @@ IPv6AuthenticationHeader::IPv6AuthenticationHeader(uint32_t securityParametersIn
 
 	if (integrityCheckValueLen > 0 && integrityCheckValue != NULL)
 	{
-		uint8_t* icvPtr = (uint8_t*)(getDataPtr() + sizeof(ipv6_authentication_header));
+		uint8_t* icvPtr = getDataPtr() + sizeof(ipv6_authentication_header);
 		memcpy(icvPtr, integrityCheckValue, integrityCheckValueLen);
 	}
 }
 
-uint8_t* IPv6AuthenticationHeader::getIntegrityCheckValue()
+uint8_t* IPv6AuthenticationHeader::getIntegrityCheckValue() const
 {
 	if (getExtensionLen() > sizeof(ipv6_authentication_header))
-		return (uint8_t*)(getDataPtr() + sizeof(ipv6_authentication_header));
+		return getDataPtr() + sizeof(ipv6_authentication_header);
 
 	return NULL;
 }
 
-size_t IPv6AuthenticationHeader::getIntegrityCheckValueLength()
+size_t IPv6AuthenticationHeader::getIntegrityCheckValueLength() const
 {
 	int result = getExtensionLen() - sizeof(ipv6_authentication_header);
 	if (result < 0)

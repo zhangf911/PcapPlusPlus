@@ -41,7 +41,7 @@ Layer& Layer::operator=(const Layer& other)
 	return *this;
 }
 
-void Layer::copyData(uint8_t* toArr)
+void Layer::copyData(uint8_t* toArr) const
 {
 	memcpy(toArr, m_Data, m_DataLen);
 }
@@ -86,7 +86,7 @@ bool Layer::shortenLayer(int offsetInLayer, size_t numOfBytesToShorten)
 	{
 		if ((size_t)offsetInLayer >= m_DataLen)
 		{
-			LOG_ERROR("Requested offset is larget than data length");
+			LOG_ERROR("Requested offset is larger than data length");
 			return false;
 		}
 

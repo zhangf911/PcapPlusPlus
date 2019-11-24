@@ -167,13 +167,14 @@ void printMethods(HttpRequestStats& reqStatscollector)
 	columnsWidths.push_back(5);
 	TablePrinter printer(columnNames, columnsWidths);
 
-	std::stringstream values;
 
 	// go over the method count table and print each method and count
 	for(std::map<HttpRequestLayer::HttpMethod, int>::iterator iter = reqStatscollector.methodCount.begin();
 			iter != reqStatscollector.methodCount.end();
 			iter++)
 	{
+		std::stringstream values;
+
 		switch (iter->first)
 		{
 		case HttpRequestLayer::HttpGET:
@@ -182,6 +183,7 @@ void printMethods(HttpRequestStats& reqStatscollector)
 			break;
 		case HttpRequestLayer::HttpPOST:
 			values << "POST" << "|" << reqStatscollector.methodCount[HttpRequestLayer::HttpPOST];
+			printer.printRow(values.str(), '|');
 			break;
 		case HttpRequestLayer::HttpCONNECT:
 			values << "CONNECT" << "|" << reqStatscollector.methodCount[HttpRequestLayer::HttpCONNECT];
@@ -397,7 +399,8 @@ void analyzeHttpFromPcapFile(std::string pcapFileName)
 
 	// set a port 80 filter on the reader device to process only HTTP packets
 	PortFilter httpPortFilter(80, SRC_OR_DST);
-	reader->setFilter(httpPortFilter);
+	if (!reader->setFilter(httpPortFilter))
+		EXIT_WITH_ERROR("Could not set up filter on file");
 
 	// read the input file packet by packet and give it to the HttpStatsCollector for collecting stats
 	HttpStatsCollector collector;
@@ -433,7 +436,8 @@ void analyzeHttpFromLiveTraffic(PcapLiveDevice* dev, bool printRatesPeriodicaly,
 
 	// set a port 80 filter on the live device to capture only HTTP packets
 	PortFilter httpPortFilter(80, SRC_OR_DST);
-	dev->setFilter(httpPortFilter);
+	if (!dev->setFilter(httpPortFilter))
+		EXIT_WITH_ERROR("Could not set up filter on device");
 
 	// if needed to save the captured packets to file - open a writer device
 	PcapFileWriterDevice* pcapWriter = NULL;

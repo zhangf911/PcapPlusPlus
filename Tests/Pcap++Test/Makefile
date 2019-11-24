@@ -10,21 +10,29 @@ endif
 
 include ../../mk/PcapPlusPlus.mk
 
+ifeq ($(wildcard ../../3rdParty/MemPlumber/Makefile.defs),)
+  $(error MemPlumber/Makefile.defs not found!)
+endif
+
+include ../../3rdParty/MemPlumber/Makefile.defs
+
 SOURCES := $(wildcard *.cpp)
 OBJS_FILENAMES := $(patsubst %.cpp,Obj/%.o,$(SOURCES))
 
-DEBUG_NEW_HOME := ../../3rdParty/debug-new
-DEBUG_NEW_SOURCES := $(wildcard $(DEBUG_NEW_HOME)/*.cpp)
-DEBUG_NEW_OBJS_FILENAMES := $(patsubst %.cpp,$(DEBUG_NEW_HOME)/%.o,$(DEBUG_NEW_SOURCES))
 ENDIAN_PORTABLE_INCLUDE := $(PCAPPLUSPLUS_HOME)/3rdParty/EndianPortable/include
 
-PCAPPP_INCLUDES += -I$(DEBUG_NEW_HOME) -I$(ENDIAN_PORTABLE_INCLUDE)
+PCPP_TEST_FRAMEWORK := ../PcppTestFramework
+
+PCAPPP_INCLUDES += -I$(MEMPLUMBER_INCLUDES) -I$(ENDIAN_PORTABLE_INCLUDE) -I$(PCPP_TEST_FRAMEWORK)
 
 ifdef WIN32
 DEPS := -DHAVE_STRUCT_TIMESPEC
 endif
 ifdef LINUX
 DEPS := -DLINUX
+endif
+ifdef FREEBSD
+DEPS := -DFREEBSD
 endif
 ifdef PF_RING_HOME
 DEPS += -DUSE_PF_RING
@@ -34,6 +42,9 @@ DEPS += -DUSE_DPDK
 endif
 ifdef MAC_OS_X
 DEPS := -DMAC_OS_X
+endif
+ifdef HAS_SET_DIRECTION_ENABLED
+DEPS += -DHAS_SET_DIRECTION_ENABLED
 endif
 
 COMMON_DEBUG_LIB_DIR := -L../../Common++/Lib/Debug
@@ -61,14 +72,14 @@ dependents:
 	cd $(PCAPPLUSPLUS_HOME) && $(MAKE) libs
 	
 Pcap++Test: start create-directories $(OBJS_FILENAMES)
-	@cd $(DEBUG_NEW_HOME) && $(MAKE) debug_new_sources
-	@$(CXX) $(COMMON_DEBUG_LIB_DIR) $(PCAPPP_LIBS_DIR) $(PCAPPP_BUILD_FLAGS) -o "./Bin/Pcap++Test$(BIN_EXT)" $(OBJS_FILENAMES) $(DEBUG_NEW_OBJS_FILENAMES) $(PCAPPP_LIBS)
+	@cd $(MEMPLUMBER_HOME) && $(MAKE) memplumber_sources
+	@$(CXX) $(COMMON_DEBUG_LIB_DIR) $(PCAPPP_LIBS_DIR) $(PCAPPP_BUILD_FLAGS) -o "./Bin/Pcap++Test$(BIN_EXT)" $(OBJS_FILENAMES) $(MEMPLUMBER_OBJS_FILENAMES) $(PCAPPP_LIBS)
 	@$(PCAPPP_POST_BUILD)
 	@echo 'Finished successfully building: $(CUR_TARGET)'
 	@echo ' '
 
 clean:
-	@cd $(DEBUG_NEW_HOME) && $(MAKE) clean
+	@cd $(MEMPLUMBER_HOME) && $(MAKE) clean
 	@$(RM) -rf ./Obj/*
 	@$(RM) -rf ./Bin/*
 	@echo 'Clean finished: $(CUR_TARGET)'

@@ -47,8 +47,8 @@ DhcpLayer::DhcpLayer(uint8_t* data, size_t dataLen, Layer* prevLayer, Packet* pa
 void DhcpLayer::initDhcpLayer(size_t numOfBytesToAllocate)
 {
 	m_DataLen = numOfBytesToAllocate;
-	m_Data = new uint8_t[m_DataLen];
-	memset(m_Data, 0, m_DataLen);
+	m_Data = new uint8_t[numOfBytesToAllocate];
+	memset(m_Data, 0, numOfBytesToAllocate);
 	m_Protocol = DHCP;
 }
 
@@ -71,7 +71,7 @@ DhcpLayer::DhcpLayer(DhcpMessageType msgType, const MacAddress& clientMacAddr) :
 	msgTypeOptionPtr[3] =  (uint8_t)DHCPOPT_END;
 }
 
-IPv4Address DhcpLayer::getClientIpAddress()
+IPv4Address DhcpLayer::getClientIpAddress() const
 {
 	return IPv4Address(getDhcpHeader()->clientIpAddress);
 }
@@ -81,7 +81,7 @@ void DhcpLayer::setClientIpAddress(const IPv4Address& addr)
 	getDhcpHeader()->clientIpAddress = addr.toInt();
 }
 
-IPv4Address DhcpLayer::getServerIpAddress()
+IPv4Address DhcpLayer::getServerIpAddress() const
 {
 	return IPv4Address(getDhcpHeader()->serverIpAddress);
 }
@@ -91,7 +91,7 @@ void DhcpLayer::setServerIpAddress(const IPv4Address& addr)
 	getDhcpHeader()->serverIpAddress = addr.toInt();
 }
 
-IPv4Address DhcpLayer::getYourIpAddress()
+IPv4Address DhcpLayer::getYourIpAddress() const
 {
 	return IPv4Address(getDhcpHeader()->yourIpAddress);
 }
@@ -101,7 +101,7 @@ void DhcpLayer::setYourIpAddress(const IPv4Address& addr)
 	getDhcpHeader()->yourIpAddress = addr.toInt();
 }
 
-IPv4Address DhcpLayer::getGatewayIpAddress()
+IPv4Address DhcpLayer::getGatewayIpAddress() const
 {
 	return IPv4Address(getDhcpHeader()->gatewayIpAddress);
 }
@@ -111,7 +111,7 @@ void DhcpLayer::setGatewayIpAddress(const IPv4Address& addr)
 	getDhcpHeader()->gatewayIpAddress = addr.toInt();
 }
 
-MacAddress DhcpLayer::getClientHardwareAddress()
+MacAddress DhcpLayer::getClientHardwareAddress() const
 {
 	dhcp_header* hdr = getDhcpHeader();
 	if (hdr != NULL && hdr->hardwareType == 1 && hdr->hardwareAddressLength == 6)
@@ -128,12 +128,6 @@ void DhcpLayer::setClientHardwareAddress(const MacAddress& addr)
 	hdr->hardwareType = 1; // Ethernet
 	hdr->hardwareAddressLength = 6; // MAC address length
 	addr.copyTo(hdr->clientHardwareAddress);
-}
-
-size_t DhcpLayer::getHeaderLen()
-{
-	// assuming no more layers DHCP
-	return m_DataLen;
 }
 
 void DhcpLayer::computeCalculateFields()
@@ -166,7 +160,7 @@ void DhcpLayer::computeCalculateFields()
 	hdr->hardwareAddressLength = 6; // MAC address length
 }
 
-std::string DhcpLayer::toString()
+std::string DhcpLayer::toString() const
 {
 	std::string msgType = "Unknown";
 	switch (getMesageType())
@@ -219,7 +213,7 @@ std::string DhcpLayer::toString()
 	return "DHCP layer (" + msgType + ")";
 }
 
-DhcpMessageType DhcpLayer::getMesageType()
+DhcpMessageType DhcpLayer::getMesageType() const
 {
 	DhcpOption opt = getOptionData(DHCPOPT_DHCP_MESSAGE_TYPE);
 	if (opt.isNull())
@@ -245,22 +239,22 @@ bool DhcpLayer::setMesageType(DhcpMessageType msgType)
 	return true;
 }
 
-DhcpOption DhcpLayer::getOptionData(DhcpOptionTypes option)
+DhcpOption DhcpLayer::getOptionData(DhcpOptionTypes option) const
 {
 	return m_OptionReader.getTLVRecord((uint8_t)option, getOptionsBasePtr(), getHeaderLen() - sizeof(dhcp_header));
 }
 
-DhcpOption DhcpLayer::getFirstOptionData()
+DhcpOption DhcpLayer::getFirstOptionData() const
 {
 	return m_OptionReader.getFirstTLVRecord(getOptionsBasePtr(), getHeaderLen() - sizeof(dhcp_header));
 }
 
-DhcpOption DhcpLayer::getNextOptionData(DhcpOption dhcpOption)
+DhcpOption DhcpLayer::getNextOptionData(DhcpOption dhcpOption) const
 {
 	return m_OptionReader.getNextTLVRecord(dhcpOption, getOptionsBasePtr(), getHeaderLen() - sizeof(dhcp_header));
 }
 
-size_t DhcpLayer::getOptionsCount()
+size_t DhcpLayer::getOptionsCount() const
 {
 	return m_OptionReader.getTLVRecordCount(getOptionsBasePtr(), getHeaderLen() - sizeof(dhcp_header));
 }

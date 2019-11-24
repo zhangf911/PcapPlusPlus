@@ -20,7 +20,6 @@ namespace pcpp
 
 	/**
 	 * An enum describing all known link layer type. Taken from: http://www.tcpdump.org/linktypes.html .
-	 * Currently only Ethernet (1) and SLL (113) are supported
 	 */
 	enum LinkLayerType
 	{
@@ -220,14 +219,14 @@ namespace pcpp
 	class RawPacket
 	{
 	protected:
-		uint8_t* m_pRawData;
+		uint8_t* m_RawData;
 		int m_RawDataLen;
 		int m_FrameLength;
 		timeval m_TimeStamp;
 		bool m_DeleteRawDataAtDestructor;
 		bool m_RawPacketSet;
-		LinkLayerType m_linkLayerType;
-		void Init();
+		LinkLayerType m_LinkLayerType;
+		void init();
 		void copyDataFrom(const RawPacket& other, bool allocateData = true);
 	public:
 		/**
@@ -275,7 +274,7 @@ namespace pcpp
 		/**
 		 * @return RawPacket object type. Each derived class should return a different value
 		 */
-		virtual inline uint8_t getObjectType() const { return 0; }
+		virtual uint8_t getObjectType() const { return 0; }
 
 		/**
 		 * Set a raw data. If data was already set and deleteRawDataAtDestructor was set to 'true' the old data will be freed first
@@ -293,7 +292,7 @@ namespace pcpp
 		 * Get raw data pointer
 		 * @return A pointer to the raw data
 		 */
-		const uint8_t* getRawData();
+		const uint8_t* getRawData() const;
 
 		/**
 		 * Get read only raw data pointer
@@ -322,7 +321,7 @@ namespace pcpp
 		 * Get raw data timestamp
 		 * @return Raw data timestamp
 		 */
-		timeval getPacketTimeStamp();
+		timeval getPacketTimeStamp() const;
 
 		/**
 		 * Get an indication whether raw data was already set for this instance.
@@ -330,7 +329,7 @@ namespace pcpp
 		 * the copy constructor or using the assignment operator. Returns false otherwise, for example: if the instance was created using the
 		 * default constructor or clear() was called
 		 */
-		inline bool isPacketSet() { return m_RawPacketSet; }
+		bool isPacketSet() const { return m_RawPacketSet; }
 
 		/**
 		 * Clears all members of this instance, meaning setting raw data to NULL, raw data length to 0, etc. Currently raw data is always freed,

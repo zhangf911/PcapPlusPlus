@@ -54,9 +54,10 @@ namespace pcpp
 		 * as a parameter)
 		 * @return The core ID the worker is running on
 		 */
-		virtual uint32_t getCoreId() = 0;
+		virtual uint32_t getCoreId() const = 0;
 	};
 
+	class KniDeviceList;
 
 	/**
 	 * @class DpdkDeviceList
@@ -69,6 +70,7 @@ namespace pcpp
 	 */
 	class DpdkDeviceList
 	{
+		friend class KniDeviceList;
 	private:
 		bool m_IsInitialized;
 		static bool m_IsDpdkInitialized;
@@ -79,11 +81,11 @@ namespace pcpp
 
 		DpdkDeviceList();
 
-		inline bool isInitialized() { return (m_IsInitialized && m_IsDpdkInitialized); }
+		bool isInitialized() const { return (m_IsInitialized && m_IsDpdkInitialized); }
 		bool initDpdkDevices(uint32_t mBufPoolSizePerDevice);
 		static bool verifyHugePagesAndDpdkDriver();
 
-		static int dpdkWorkerThreadStart(void *ptr);
+		static int dpdkWorkerThreadStart(void* ptr);
 	public:
 
 		~DpdkDeviceList();
@@ -93,7 +95,7 @@ namespace pcpp
 		 * initDpdk() was not called or returned false this instance won't be initialized and DpdkDevices won't be initialized either
 		 * @return The singleton instance of DpdkDeviceList
 		 */
-		static inline DpdkDeviceList& getInstance()
+		static DpdkDeviceList& getInstance()
 		{
 			static DpdkDeviceList instance;
 			if (!instance.isInitialized())
@@ -129,24 +131,24 @@ namespace pcpp
 		 * @param[in] portId The port ID
 		 * @return A pointer to the DpdkDevice or NULL if no such device is found
 		 */
-		DpdkDevice* getDeviceByPort(int portId);
+		DpdkDevice* getDeviceByPort(int portId) const;
 
 		/**
 		 * Get a DpdkDevice by port PCI address
 		 * @param[in] pciAddr The port PCI address
 		 * @return A pointer to the DpdkDevice or NULL if no such device is found
 		 */
-		DpdkDevice* getDeviceByPciAddress(const PciAddress& pciAddr);
+		DpdkDevice* getDeviceByPciAddress(const std::string& pciAddr) const;
 
 		/**
 		 * @return A vector of all DpdkDevice instances
 		 */
-		inline const std::vector<DpdkDevice*>& getDpdkDeviceList() { return m_DpdkDeviceList; }
+		const std::vector<DpdkDevice*>& getDpdkDeviceList() const { return m_DpdkDeviceList; }
 
 		/**
 		 * @return DPDK master core which is the core that initializes the application
 		 */
-		SystemCore getDpdkMasterCore();
+		SystemCore getDpdkMasterCore() const;
 
 		/**
 		 * Change the log level of all modules of DPDK
@@ -158,7 +160,7 @@ namespace pcpp
 		 * @return The current DPDK log level. RTE_LOG_NOTICE and lower are considered as LoggerPP#Normal. RTE_LOG_INFO or RTE_LOG_DEBUG
 		 * are considered as LoggerPP#Debug
 		 */
-		LoggerPP::LogLevel getDpdkLogLevel();
+		LoggerPP::LogLevel getDpdkLogLevel() const;
 
 		/**
 		 * Order DPDK to write all its logs to a file

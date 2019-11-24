@@ -30,7 +30,7 @@ namespace pcpp
 		/**
 		* @return The name of the file
 		*/
-		std::string getFileName();
+		std::string getFileName() const;
 
 
 		//override methods
@@ -69,7 +69,7 @@ namespace pcpp
 		/**
 		* @return The file size in bytes
 		*/
-		uint64_t getFileSize();
+		uint64_t getFileSize() const;
 
 		virtual bool getNextPacket(RawPacket& rawPacket) = 0;
 
@@ -111,7 +111,7 @@ namespace pcpp
 		 * isn't opened yet, so reading packets will fail. For opening the file call open()
 		 * @param[in] fileName The full path of the file to read
 		 */
-		PcapFileReaderDevice(const char* fileName);
+		PcapFileReaderDevice(const char* fileName) : IFileReaderDevice(fileName), m_PcapLinkLayerType(LINKTYPE_ETHERNET) {}
 
 		/**
 		 * A destructor for this class
@@ -121,7 +121,7 @@ namespace pcpp
 		/**
 		* @return The link layer type of this file
 		*/
-		LinkLayerType getLinkLayerType();
+		LinkLayerType getLinkLayerType() const { return m_PcapLinkLayerType; }
 
 
 		//overridden methods
@@ -145,7 +145,7 @@ namespace pcpp
 		 * Get statistics of packets read so far. In the pcap_stat struct, only ps_recv member is relevant. The rest of the members will contain 0
 		 * @param[out] stats The stats struct where stats are returned
 		 */
-		void getStatistics(pcap_stat& stats);
+		void getStatistics(pcap_stat& stats) const;
 	};
 
 
@@ -187,7 +187,7 @@ namespace pcpp
 		 * returns it
 		 * @return The operating system string if exists, or an empty string otherwise
 		 */
-		std::string getOS();
+		std::string getOS() const;
 
 		/**
 		 * The pcap-ng format allows storing metadata at the header of the file. Part of this metadata is a string specifying the
@@ -195,7 +195,7 @@ namespace pcpp
 		 * returns it
 		 * @return The hardware string if exists, or an empty string otherwise
 		 */
-		std::string getHardware();
+		std::string getHardware() const;
 
 		/**
 		 * The pcap-ng format allows storing metadata at the header of the file. Part of this metadata is a string specifying the
@@ -203,7 +203,7 @@ namespace pcpp
 		 * returns it
 		 * @return The capture application string if exists, or an empty string otherwise
 		 */
-		std::string getCaptureApplication();
+		std::string getCaptureApplication() const;
 
 		/**
 		 * The pcap-ng format allows storing metadata at the header of the file. Part of this metadata is a string containing a user-defined
@@ -211,7 +211,7 @@ namespace pcpp
 		 * returns it
 		 * @return The comment written inside the file if exists, or an empty string otherwise
 		 */
-		std::string getCaptureFileComment();
+		std::string getCaptureFileComment() const;
 
 		/**
 		 * The pcap-ng format allows storing a user-defined comment for every packet (besides the comment per-file). This method reads
@@ -244,7 +244,7 @@ namespace pcpp
 		 * Get statistics of packets read so far. In the pcap_stat struct, only ps_recv member is relevant. The rest of the members will contain 0
 		 * @param[out] stats The stats struct where stats are returned
 		 */
-		void getStatistics(pcap_stat& stats);
+		void getStatistics(pcap_stat& stats) const;
 
 		/**
 		 * Set a filter for PcapNG reader device. Only packets that match the filter will be received
@@ -372,7 +372,7 @@ namespace pcpp
 		 * Get statistics of packets written so far. In the pcap_stat struct, only ps_recv member is relevant. The rest of the members will contain 0
 		 * @param[out] stats The stats struct where stats are returned
 		 */
-		virtual void getStatistics(pcap_stat& stats);
+		virtual void getStatistics(pcap_stat& stats) const;
 	};
 
 
@@ -387,6 +387,7 @@ namespace pcpp
 	{
 	private:
 		void* m_LightPcapNg;
+		int m_CompressionLevel;
 		struct bpf_program m_Bpf;
 		bool m_BpfInitialized;
 		int m_BpfLinkType;
@@ -404,8 +405,9 @@ namespace pcpp
 		 * A constructor for this class that gets the pcap-ng full path file name to open for writing or create. Notice that after calling this
 		 * constructor the file isn't opened yet, so writing packets will fail. For opening the file call open()
 		 * @param[in] fileName The full path of the file
+		 * @param[in] compressionLevel The compression level to use when writing the file, use 0 to disable compression or 10 for max compression. Default is 0 
 		 */
-		PcapNgFileWriterDevice(const char* fileName);
+		PcapNgFileWriterDevice(const char* fileName, int compressionLevel = 0);
 
 		/**
 		 * A destructor for this class
@@ -486,7 +488,7 @@ namespace pcpp
 		 * Get statistics of packets written so far. In the pcap_stat struct, only ps_recv member is relevant. The rest of the members will contain 0
 		 * @param[out] stats The stats struct where stats are returned
 		 */
-		void getStatistics(pcap_stat& stats);
+		void getStatistics(pcap_stat& stats) const;
 
 		/**
 		 * Set a filter for PcapNG writer device. Only packets that match the filter will be persisted

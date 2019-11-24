@@ -31,8 +31,8 @@ Packet::Packet(size_t maxPacketLen) :
 {
 	timeval time;
 	gettimeofday(&time, NULL);
-	uint8_t* data = new uint8_t[m_MaxPacketLen];
-	memset(data, 0, m_MaxPacketLen);
+	uint8_t* data = new uint8_t[maxPacketLen];
+	memset(data, 0, maxPacketLen);
 	m_RawPacket = new RawPacket((const uint8_t*)data, 0, time, true, LINKTYPE_ETHERNET);
 }
 
@@ -51,32 +51,7 @@ void Packet::setRawPacket(RawPacket* rawPacket, bool freeRawPacket, ProtocolType
 
 	LinkLayerType linkType = m_RawPacket->getLinkLayerType();
 
-	if (linkType == LINKTYPE_ETHERNET)
-	{
-		m_FirstLayer = new EthLayer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), this);
-	}
-	else if (linkType == LINKTYPE_LINUX_SLL)
-	{
-		m_FirstLayer = new SllLayer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), this);
-	}
-	else if (linkType == LINKTYPE_NULL)
-	{
-		m_FirstLayer = new NullLoopbackLayer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), this);
-	}
-	else if (linkType == LINKTYPE_RAW || linkType == LINKTYPE_DLT_RAW1 || linkType == LINKTYPE_DLT_RAW2)
-	{
-		uint8_t ipVer = m_RawPacket->getRawData()[0] & 0xf0;
-		if (ipVer == 0x40)
-			m_FirstLayer = new IPv4Layer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), NULL, this);
-		else if (ipVer == 0x60)
-			m_FirstLayer = new IPv6Layer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), NULL, this);
-		else
-			m_FirstLayer = new PayloadLayer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), NULL, this);
-	}
-	else // unknown link type
-	{
-		m_FirstLayer = new EthLayer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), this);
-	}
+	m_FirstLayer = createFirstLayer(linkType);
 
 	m_LastLayer = m_FirstLayer;
 	Layer* curLayer = m_FirstLayer;
@@ -185,7 +160,7 @@ void Packet::copyDataFrom(const Packet& other)
 	m_FreeRawPacket = true;
 	m_MaxPacketLen = other.m_MaxPacketLen;
 	m_ProtocolTypes = other.m_ProtocolTypes;
-	m_FirstLayer = new EthLayer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), this);
+	m_FirstLayer = createFirstLayer(m_RawPacket->getLinkLayerType());
 	m_LastLayer = m_FirstLayer;
 	Layer* curLayer = m_FirstLayer;
 	while (curLayer != NULL)
@@ -225,12 +200,12 @@ void Packet::reallocateRawData(size_t newSize)
 	}
 }
 
-bool Packet::addLayer(Layer* newLayer)
+bool Packet::addLayer(Layer* newLayer, bool ownInPacket)
 {
-	return insertLayer(m_LastLayer, newLayer);
+	return insertLayer(m_LastLayer, newLayer, ownInPacket);
 }
 
-bool Packet::insertLayer(Layer* prevLayer, Layer* newLayer)
+bool Packet::insertLayer(Layer* prevLayer, Layer* newLayer, bool ownInPacket)
 {
 	if (newLayer == NULL)
 	{
@@ -292,6 +267,10 @@ bool Packet::insertLayer(Layer* prevLayer, Layer* newLayer)
 
 	// assign layer with this packet only
 	newLayer->m_Packet = this;
+
+	// Set flag to indicate if new layer is allocated to packet.
+	if(ownInPacket)
+	   newLayer->m_IsAllocatedInPacket = true;
 
 	// re-calculate all layers data ptr and data length
 
@@ -444,6 +423,7 @@ bool Packet::removeLayer(Layer* layer, bool tryToDelete)
 	if (!m_RawPacket->removeData(indexOfDataToRemove, numOfBytesToRemove))
 	{
 		LOG_ERROR("Couldn't remove data from packet");
+		delete [] layerOldData;
 		return false;
 	}
 
@@ -524,7 +504,7 @@ bool Packet::removeLayer(Layer* layer, bool tryToDelete)
 	return true;
 }
 
-Layer* Packet::getLayerOfType(ProtocolType layerType, int index)
+Layer* Packet::getLayerOfType(ProtocolType layerType, int index) const
 {
 	Layer* curLayer = getFirstLayer();
 	int curIndex = 0;
@@ -669,7 +649,7 @@ Packet::~Packet()
 	destructPacketData();
 }
 
-std::string Packet::printPacketInfo(bool timeAsLocalTime)
+std::string Packet::printPacketInfo(bool timeAsLocalTime) const
 {
 	std::ostringstream dataLenStream;
 	dataLenStream << m_RawPacket->getRawDataLen();
@@ -683,7 +663,7 @@ std::string Packet::printPacketInfo(bool timeAsLocalTime)
 	else
 		nowtm = gmtime(&nowtime);
 
-	char tmbuf[64], buf[64];
+	char tmbuf[64], buf[128];
 	if (nowtm != NULL)
 	{
 		strftime(tmbuf, sizeof(tmbuf), "%Y-%m-%d %H:%M:%S", nowtm);
@@ -693,6 +673,41 @@ std::string Packet::printPacketInfo(bool timeAsLocalTime)
 		snprintf(buf, sizeof(buf), "0000-00-00 00:00:00.000000");
 	
 	return "Packet length: " + dataLenStream.str() + " [Bytes], Arrival time: " + std::string(buf);
+}
+
+Layer* Packet::createFirstLayer(LinkLayerType linkType)
+{
+	if (linkType == LINKTYPE_ETHERNET)
+	{
+		return new EthLayer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), this);
+	}
+	else if (linkType == LINKTYPE_LINUX_SLL)
+	{
+		return new SllLayer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), this);
+	}
+	else if (linkType == LINKTYPE_NULL)
+	{
+		return new NullLoopbackLayer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), this);
+	}
+	else if (linkType == LINKTYPE_RAW || linkType == LINKTYPE_DLT_RAW1 || linkType == LINKTYPE_DLT_RAW2)
+	{
+		uint8_t ipVer = m_RawPacket->getRawData()[0] & 0xf0;
+		if (ipVer == 0x40)
+		{
+			return new IPv4Layer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), NULL, this);
+		}
+		else if (ipVer == 0x60)
+		{
+			return new IPv6Layer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), NULL, this);
+		}
+		else
+		{
+			return new PayloadLayer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), NULL, this);
+		}
+	}
+
+	// unknown link type
+	return new EthLayer((uint8_t*)m_RawPacket->getRawData(), m_RawPacket->getRawDataLen(), this);
 }
 
 std::string Packet::toString(bool timeAsLocalTime)
@@ -708,7 +723,7 @@ std::string Packet::toString(bool timeAsLocalTime)
 	return result;
 }
 
-void Packet::toStringList(std::vector<std::string>& result, bool timeAsLocalTime)
+void Packet::toStringList(std::vector<std::string>& result, bool timeAsLocalTime) const
 {
 	result.clear();
 	result.push_back(printPacketInfo(timeAsLocalTime));

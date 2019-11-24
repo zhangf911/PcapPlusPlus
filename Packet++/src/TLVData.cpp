@@ -4,12 +4,19 @@
 #include <winsock2.h>
 #elif LINUX
 #include <in.h> //for using ntohl, ntohs, etc.
-#elif MAC_OS_X
+#elif MAC_OS_X || FREEBSD
 #include <arpa/inet.h> //for using ntohl, ntohs, etc.
 #endif
 
 namespace pcpp
 {
+
+TLVRecordBuilder::TLVRecordBuilder()
+{
+	m_RecType = 0;
+	m_RecValueLen = 0;
+	m_RecValue = NULL;
+}
 
 TLVRecordBuilder::TLVRecordBuilder(uint8_t recType, const uint8_t* recValue, uint8_t recValueLen)
 {
